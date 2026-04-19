@@ -46,18 +46,8 @@ const initDb = async () => {
     }
 };
 
-const storage = new CloudinaryStorage({
-    cloudinary: cloudinary,
-    params: {
-        folder: 'zoe-blog',
-        allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-        transformation: [{ quality: 'auto', fetch_format: 'auto' }]
-    },
-    maxFileSize: 50 * 1024 * 1024
-});
-
 const upload = multer({
-    storage: storage,
+    storage: multer.memoryStorage(),
     limits: { fileSize: 50 * 1024 * 1024 }
 });
 
@@ -90,6 +80,25 @@ app.get('/api/posts/:id', async (req, res) => {
     }
 });
 
+async function uploadToCloudinary(file) {
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            {
+                folder: 'zoe-blog',
+                transformation: [{ quality: 'auto', fetch_format: 'auto' }]
+            },
+            (error, result) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(result.secure_url);
+                }
+            }
+        );
+        stream.end(file.buffer);
+    });
+}
+
 app.post('/api/posts', upload.array('images', 10), async (req, res) => {
     try {
         const { title, content } = req.body;
@@ -97,7 +106,13 @@ app.post('/api/posts', upload.array('images', 10), async (req, res) => {
             return res.status(400).json({ error: 'Title and content are required' });
         }
 
-        const images = req.files ? req.files.map(file => file.path) : [];
+        const images = [];
+        if (req.files) {
+            for (const file of req.files) {
+                const imageUrl = await uploadToCloudinary(file);
+                images.push(imageUrl);
+            }
+        }
 
         const result = await pool.query(
             'INSERT INTO posts (title, content, images) VALUES ($1, $2, $3) RETURNING *',
@@ -125,7 +140,15 @@ app.put('/api/posts/:id', upload.array('images', 10), async (req, res) => {
         const existingPost = existingResult.rows[0];
 
         const existingImages = existingPost.images ? JSON.parse(existingPost.images) : [];
-        const newImages = req.files ? req.files.map(file => file.path) : [];
+        const newImages = [];
+        
+        if (req.files) {
+            for (const file of req.files) {
+                const imageUrl = await uploadToCloudinary(file);
+                newImages.push(imageUrl);
+            }
+        }
+        
         const allImages = [...existingImages, ...newImages];
 
         const result = await pool.query(
