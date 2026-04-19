@@ -419,7 +419,7 @@
     </div>
 
     <script>
-        if (localStorage.getItem('verified') !== 'true') {
+        if (sessionStorage.getItem('verified') !== 'true') {
             window.location.href = '/verify.html';
         }
 
