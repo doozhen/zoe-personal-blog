@@ -462,30 +462,24 @@ app.put('/api/guestbook/:id', upload.array('images', 10), async (req, res) => {
         const existingImages = existingEntry.images ? JSON.parse(existingEntry.images) : [];
         const existingVideos = existingEntry.videos ? JSON.parse(existingEntry.videos) : [];
         const newImages = [];
-        const newVideos = [];
 
         if (req.files) {
             for (const file of req.files) {
                 const fileUrl = await uploadToCloudinary(file);
-                if (file.mimetype.startsWith('video/')) {
-                    newVideos.push(fileUrl);
-                } else {
-                    newImages.push(fileUrl);
-                }
+                newImages.push(fileUrl);
             }
         }
 
         const allImages = [...existingImages, ...newImages];
-        const allVideos = [...existingVideos, ...newVideos];
 
         const result = await pool.query(
             'UPDATE guestbook SET title = $1, content = $2, images = $3, videos = $4 WHERE id = $5 RETURNING *',
-            [title || existingEntry.title, content || existingEntry.content, JSON.stringify(allImages), JSON.stringify(allVideos), entryId]
+            [title || existingEntry.title, content || existingEntry.content, JSON.stringify(allImages), JSON.stringify(existingVideos), entryId]
         );
 
         const updatedEntry = result.rows[0];
         updatedEntry.images = allImages;
-        updatedEntry.videos = allVideos;
+        updatedEntry.videos = existingVideos;
         res.json(updatedEntry);
     } catch (error) {
         console.error('Error updating guestbook entry:', error);
@@ -493,7 +487,7 @@ app.put('/api/guestbook/:id', upload.array('images', 10), async (req, res) => {
     }
 });
 
-app.post('/api/guestbook', upload.fields([{ name: 'images', maxCount: 9 }, { name: 'videos', maxCount: 5 }]), async (req, res) => {
+app.post('/api/guestbook', upload.fields([{ name: 'images', maxCount: 9 }]), async (req, res) => {
     try {
         const { title, content } = req.body;
 
@@ -502,7 +496,6 @@ app.post('/api/guestbook', upload.fields([{ name: 'images', maxCount: 9 }, { nam
         }
 
         const images = [];
-        const videos = [];
 
         if (req.files && req.files['images']) {
             for (const file of req.files['images']) {
@@ -513,19 +506,9 @@ app.post('/api/guestbook', upload.fields([{ name: 'images', maxCount: 9 }, { nam
             }
         }
 
-        if (req.files && req.files['videos']) {
-            for (const file of req.files['videos']) {
-                const result = await cloudinary.uploader.upload(`data:${file.mimetype};base64,${file.buffer.toString('base64')}`, {
-                    folder: 'zoe-blog/guestbook',
-                    resource_type: 'video'
-                });
-                videos.push(result.secure_url);
-            }
-        }
-
         const result = await pool.query(
             'INSERT INTO guestbook (title, content, images, videos) VALUES ($1, $2, $3, $4) RETURNING *',
-            [title, content, JSON.stringify(images), JSON.stringify(videos)]
+            [title, content, JSON.stringify(images), JSON.stringify([])]
         );
 
         res.status(201).json(result.rows[0]);

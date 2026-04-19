@@ -602,13 +602,6 @@
                     <div class="image-preview-container" id="guestbook-image-preview-container"></div>
                 </div>
 
-                <div class="form-group">
-                    <label>视频（可选，最多5个）</label>
-                    <div class="upload-area" id="guestbook-video-upload-area" onclick="document.getElementById('guestbook-video-input').click()">
-                        <p>点击或拖拽视频到此处上传</p>
-                        <input type="file" id="guestbook-video-input" accept="video/*" multiple style="display: none;" onchange="handleGuestbookVideoUpload(event)">
-                    </div>
-                    <div class="video-preview-container" id="guestbook-video-preview-container"></div>
                 </div>
 
                 <div class="modal-actions">
@@ -1328,15 +1321,12 @@
         }
 
         let selectedGuestbookImages = [];
-        let selectedGuestbookVideos = [];
 
         function openGuestbook() {
             document.getElementById('guestbook-modal').classList.add('active');
             document.getElementById('guestbook-form').reset();
             selectedGuestbookImages = [];
-            selectedGuestbookVideos = [];
             document.getElementById('guestbook-image-preview-container').innerHTML = '';
-            document.getElementById('guestbook-video-preview-container').innerHTML = '';
             loadFFmpeg();
         }
 
@@ -1382,45 +1372,6 @@
             event.target.value = '';
         }
 
-        async function handleGuestbookVideoUpload(event) {
-            const files = Array.from(event.target.files);
-            const container = document.getElementById('guestbook-video-preview-container');
-
-            for (const file of files) {
-                if (selectedGuestbookVideos.length >= 5) {
-                    alert('最多只能上传5个视频');
-                    break;
-                }
-
-                if (!file.type.startsWith('video/')) continue;
-
-                selectedGuestbookVideos.push(file);
-
-                const preview = document.createElement('div');
-                preview.className = 'preview-item video-preview';
-                preview.dataset.filename = file.name;
-
-                const video = document.createElement('video');
-                video.src = URL.createObjectURL(file);
-                video.controls = true;
-
-                const removeBtn = document.createElement('button');
-                removeBtn.type = 'button';
-                removeBtn.className = 'remove-btn';
-                removeBtn.innerHTML = '×';
-                removeBtn.onclick = () => {
-                    selectedGuestbookVideos = selectedGuestbookVideos.filter(f => f !== file);
-                    preview.remove();
-                };
-
-                preview.appendChild(video);
-                preview.appendChild(removeBtn);
-                container.appendChild(preview);
-            }
-
-            event.target.value = '';
-        }
-
         document.getElementById('guestbook-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -1439,11 +1390,6 @@
             const newImageFiles = selectedGuestbookImages.filter(f => f instanceof File);
             newImageFiles.forEach(file => {
                 formData.append('images', file);
-            });
-
-            const newVideoFiles = selectedGuestbookVideos.filter(f => f instanceof File);
-            newVideoFiles.forEach(file => {
-                formData.append('videos', file);
             });
 
             try {
