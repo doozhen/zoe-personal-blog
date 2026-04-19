@@ -416,12 +416,19 @@
             <p>zoe乱七八糟的的的的的博客,当然你也可以向我提问,或许我会为你解答。</p>
             <div class="nav">
                 <button class="nav-btn" onclick="openEditor()" id="new-post-btn">撰写新日志</button>
+                <button class="nav-btn" onclick="openGuestbook()">留言</button>
                 <button class="nav-btn" onclick="loadPosts()">刷新列表</button>
             </div>
         </header>
 
         <div id="posts-container">
             <div class="loading">加载中...</div>
+        </div>
+
+        <div id="guestbook-section" style="margin-top: 40px; padding: 20px; background: #f8f9fa; border-radius: 15px;">
+            <h3 style="margin-bottom: 20px; color: #333;">留言板</h3>
+            <div id="guestbook-list" style="margin-bottom: 20px;"></div>
+            <p id="guestbook-empty" style="color: #888; display: none;">暂无留言，来发表第一条留言吧！</p>
         </div>
     </div>
 
@@ -491,6 +498,28 @@
             <div class="modal-actions" style="margin-top: 30px;">
                 <button class="btn-cancel" onclick="closeViewer()">关闭</button>
             </div>
+        </div>
+    </div>
+
+    <div class="modal" id="guestbook-modal">
+        <div class="modal-content">
+            <h2 id="guestbook-title">留言</h2>
+            <form id="guestbook-form">
+                <div class="form-group">
+                    <label for="guestbook-author">称呼</label>
+                    <input type="text" id="guestbook-author" placeholder="请输入你的称呼" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="guestbook-content">留言内容</label>
+                    <textarea id="guestbook-content" placeholder="请输入留言内容" required></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeGuestbook()">取消</button>
+                    <button type="submit" class="btn-submit" id="guestbook-submit-btn">发布</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -631,6 +660,57 @@
             } catch (error) {
                 container.innerHTML = '<div class="loading">加载失败，请刷新重试</div>';
                 console.error('Error loading posts:', error);
+            }
+        }
+
+        async function loadGuestbook() {
+            const listContainer = document.getElementById('guestbook-list');
+            const emptyMessage = document.getElementById('guestbook-empty');
+
+            try {
+                const response = await fetch('/api/guestbook');
+                const entries = await response.json();
+
+                if (entries.length === 0) {
+                    listContainer.innerHTML = '';
+                    emptyMessage.style.display = 'block';
+                    return;
+                }
+
+                emptyMessage.style.display = 'none';
+                listContainer.innerHTML = entries.map(entry => `
+                    <div style="background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong style="color: #667eea;">${escapeHtml(entry.author)}</strong>
+                            <span style="color: #888; font-size: 0.85rem;">${new Date(entry.created_at).toLocaleString('zh-CN')}</span>
+                        </div>
+                        <p style="margin: 0; color: #333; line-height: 1.6;">${escapeHtml(entry.content)}</p>
+                        ${isOwner ? `<button class="btn-delete" onclick="deleteGuestbookEntry(${entry.id})" style="margin-top: 10px;">删除</button>` : ''}
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading guestbook:', error);
+            }
+        }
+
+        async function deleteGuestbookEntry(id) {
+            if (!confirm('确定要删除这条留言吗？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/guestbook/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    loadGuestbook();
+                } else {
+                    alert('删除失败');
+                }
+            } catch (error) {
+                alert('删除失败，请重试');
+                console.error('Error deleting guestbook entry:', error);
             }
         }
 
@@ -1019,6 +1099,7 @@
                     alert(postId ? '日志已更新' : '日志发布成功');
                     closeEditor();
                     loadPosts();
+                    loadGuestbook();
                 } else {
                     const error = await response.json();
                     alert(error.error || '操作失败');
@@ -1125,6 +1206,47 @@
             document.getElementById('view-modal').classList.remove('active');
         }
 
+        function openGuestbook() {
+            document.getElementById('guestbook-modal').classList.add('active');
+            document.getElementById('guestbook-form').reset();
+        }
+
+        function closeGuestbook() {
+            document.getElementById('guestbook-modal').classList.remove('active');
+        }
+
+        document.getElementById('guestbook-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const author = document.getElementById('guestbook-author').value.trim();
+            const content = document.getElementById('guestbook-content').value.trim();
+
+            if (!author || !content) {
+                alert('请填写称呼和留言内容');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/guestbook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ author, content })
+                });
+
+                if (response.ok) {
+                    alert('留言已发布');
+                    closeGuestbook();
+                    loadPosts();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || '留言失败');
+                }
+            } catch (error) {
+                alert('留言失败，请重试');
+                console.error('Error submitting guestbook:', error);
+            }
+        });
+
         async function editPost(postId) {
             openEditor(postId);
         }
@@ -1159,6 +1281,7 @@
         }
 
         loadPosts();
+        loadGuestbook();
     </script>
 </body>
 </html>

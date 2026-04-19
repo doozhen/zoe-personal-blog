@@ -63,6 +63,15 @@ const initDb = async () => {
                 FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
             )
         `);
+        
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS guestbook (
+                id SERIAL PRIMARY KEY,
+                author TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
         console.log('Database initialized');
     } finally {
         client.release();
@@ -365,6 +374,52 @@ app.delete('/api/comments/:id', async (req, res) => {
         res.json({ message: 'Comment deleted successfully' });
     } catch (error) {
         console.error('Error deleting comment:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/guestbook', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM guestbook ORDER BY created_at DESC');
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching guestbook entries:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/guestbook', async (req, res) => {
+    try {
+        const { author, content } = req.body;
+
+        if (!author || !content) {
+            return res.status(400).json({ error: 'Author and content are required' });
+        }
+
+        const result = await pool.query(
+            'INSERT INTO guestbook (author, content) VALUES ($1, $2) RETURNING *',
+            [author, content]
+        );
+
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error('Error creating guestbook entry:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/guestbook/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query('DELETE FROM guestbook WHERE id = $1 RETURNING *', [id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Guestbook entry not found' });
+        }
+
+        res.json({ message: 'Guestbook entry deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting guestbook entry:', error);
         res.status(500).json({ error: error.message });
     }
 });
