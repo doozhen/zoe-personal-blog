@@ -40,6 +40,7 @@ const initDb = async () => {
                 title TEXT NOT NULL,
                 content TEXT NOT NULL,
                 images TEXT,
+                videos TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -70,6 +71,7 @@ app.get('/api/posts', async (req, res) => {
         const result = await pool.query('SELECT * FROM posts ORDER BY created_at DESC');
         const posts = result.rows.map(row => {
             row.images = row.images ? JSON.parse(row.images) : [];
+            row.videos = row.videos ? JSON.parse(row.videos) : [];
             return row;
         });
         res.json(posts);
@@ -87,6 +89,7 @@ app.get('/api/posts/:id', async (req, res) => {
         }
         const post = result.rows[0];
         post.images = post.images ? JSON.parse(post.images) : [];
+        post.videos = post.videos ? JSON.parse(post.videos) : [];
         res.json(post);
     } catch (error) {
         console.error('Error fetching post:', error);
@@ -99,6 +102,7 @@ async function uploadToCloudinary(file) {
         const stream = cloudinary.uploader.upload_stream(
             {
                 folder: 'zoe-blog',
+                resource_type: 'auto',
                 transformation: [{ quality: 'auto', fetch_format: 'auto' }]
             },
             (error, result) => {
@@ -121,20 +125,26 @@ app.post('/api/posts', upload.array('images', 10), async (req, res) => {
         }
 
         const images = [];
+        const videos = [];
         if (req.files) {
             for (const file of req.files) {
-                const imageUrl = await uploadToCloudinary(file);
-                images.push(imageUrl);
+                const fileUrl = await uploadToCloudinary(file);
+                if (file.mimetype.startsWith('video/')) {
+                    videos.push(fileUrl);
+                } else {
+                    images.push(fileUrl);
+                }
             }
         }
 
         const result = await pool.query(
-            'INSERT INTO posts (title, content, images) VALUES ($1, $2, $3) RETURNING *',
-            [title, content, JSON.stringify(images)]
+            'INSERT INTO posts (title, content, images, videos) VALUES ($1, $2, $3, $4) RETURNING *',
+            [title, content, JSON.stringify(images), JSON.stringify(videos)]
         );
 
         const newPost = result.rows[0];
         newPost.images = images;
+        newPost.videos = videos;
         res.status(201).json(newPost);
     } catch (error) {
         console.error('Error creating post:', error);
@@ -154,24 +164,32 @@ app.put('/api/posts/:id', upload.array('images', 10), async (req, res) => {
         const existingPost = existingResult.rows[0];
 
         const existingImages = existingPost.images ? JSON.parse(existingPost.images) : [];
+        const existingVideos = existingPost.videos ? JSON.parse(existingPost.videos) : [];
         const newImages = [];
-        
+        const newVideos = [];
+
         if (req.files) {
             for (const file of req.files) {
-                const imageUrl = await uploadToCloudinary(file);
-                newImages.push(imageUrl);
+                const fileUrl = await uploadToCloudinary(file);
+                if (file.mimetype.startsWith('video/')) {
+                    newVideos.push(fileUrl);
+                } else {
+                    newImages.push(fileUrl);
+                }
             }
         }
-        
+
         const allImages = [...existingImages, ...newImages];
+        const allVideos = [...existingVideos, ...newVideos];
 
         const result = await pool.query(
-            'UPDATE posts SET title = $1, content = $2, images = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *',
-            [title || existingPost.title, content || existingPost.content, JSON.stringify(allImages), postId]
+            'UPDATE posts SET title = $1, content = $2, images = $3, videos = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *',
+            [title || existingPost.title, content || existingPost.content, JSON.stringify(allImages), JSON.stringify(allVideos), postId]
         );
 
         const updatedPost = result.rows[0];
         updatedPost.images = allImages;
+        updatedPost.videos = allVideos;
         res.json(updatedPost);
     } catch (error) {
         console.error('Error updating post:', error);
@@ -194,6 +212,14 @@ app.delete('/api/posts/:id', async (req, res) => {
             for (const imageUrl of images) {
                 const publicId = imageUrl.substring(imageUrl.lastIndexOf('/') + 1, imageUrl.lastIndexOf('.'));
                 await cloudinary.uploader.destroy(`zoe-blog/${publicId}`);
+            }
+        }
+
+        if (post.videos) {
+            const videos = JSON.parse(post.videos);
+            for (const videoUrl of videos) {
+                const publicId = videoUrl.substring(videoUrl.lastIndexOf('/') + 1, videoUrl.lastIndexOf('.'));
+                await cloudinary.uploader.destroy(`zoe-blog/${publicId}`, { resource_type: 'video' });
             }
         }
 
@@ -233,6 +259,38 @@ app.delete('/api/posts/:id/images/:imageIndex', async (req, res) => {
         res.json({ message: 'Image deleted successfully', images });
     } catch (error) {
         console.error('Error deleting image:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/posts/:id/videos/:videoIndex', async (req, res) => {
+    try {
+        const postId = req.params.id;
+        const videoIndex = parseInt(req.params.videoIndex);
+
+        const existingResult = await pool.query('SELECT * FROM posts WHERE id = $1', [postId]);
+        if (existingResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Post not found' });
+        }
+        const post = existingResult.rows[0];
+
+        const videos = post.videos ? JSON.parse(post.videos) : [];
+
+        if (videoIndex < 0 || videoIndex >= videos.length) {
+            return res.status(400).json({ error: 'Invalid video index' });
+        }
+
+        const videoUrl = videos[videoIndex];
+        const publicId = videoUrl.substring(videoUrl.lastIndexOf('/') + 1, videoUrl.lastIndexOf('.'));
+        await cloudinary.uploader.destroy(`zoe-blog/${publicId}`, { resource_type: 'video' });
+
+        videos.splice(videoIndex, 1);
+
+        await pool.query('UPDATE posts SET videos = $1 WHERE id = $2', [JSON.stringify(videos), postId]);
+
+        res.json({ message: 'Video deleted successfully', videos });
+    } catch (error) {
+        console.error('Error deleting video:', error);
         res.status(500).json({ error: error.message });
     }
 });

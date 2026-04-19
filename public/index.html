@@ -49,32 +49,32 @@
         .nav-btn {
             background: rgba(255, 255, 255, 0.2);
             color: white;
-            border: 2px solid white;
+            border: none;
             padding: 12px 30px;
-            border-radius: 50px;
+            border-radius: 25px;
             cursor: pointer;
             font-size: 1rem;
             transition: all 0.3s ease;
         }
 
         .nav-btn:hover {
-            background: white;
-            color: #667eea;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
         }
 
         .posts-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 30px;
-            margin-top: 40px;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
         }
 
         .post-card {
             background: white;
-            border-radius: 20px;
+            border-radius: 15px;
             padding: 25px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
+            transition: all 0.3s ease;
         }
 
         .post-card:hover {
@@ -113,6 +113,18 @@
             height: 60px;
             object-fit: cover;
             border-radius: 8px;
+        }
+
+        .post-card .video-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #ff6b6b;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
         }
 
         .post-actions {
@@ -214,7 +226,7 @@
             font-family: inherit;
         }
 
-        .image-upload-area {
+        .upload-area {
             border: 2px dashed #ccc;
             border-radius: 10px;
             padding: 30px;
@@ -223,12 +235,17 @@
             transition: all 0.3s ease;
         }
 
-        .image-upload-area:hover {
+        .upload-area:hover {
             border-color: #667eea;
             background: #f8f8ff;
         }
 
-        .image-upload-area input[type="file"] {
+        .upload-area.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .upload-area input[type="file"] {
             display: none;
         }
 
@@ -237,7 +254,7 @@
             margin-bottom: 10px;
         }
 
-        .preview-images {
+        .preview-container {
             display: flex;
             gap: 15px;
             flex-wrap: wrap;
@@ -250,7 +267,8 @@
             height: 120px;
         }
 
-        .preview-item img {
+        .preview-item img,
+        .preview-item video {
             width: 100%;
             height: 100%;
             object-fit: cover;
@@ -273,6 +291,17 @@
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        .preview-item .compress-indicator {
+            position: absolute;
+            bottom: -5px;
+            left: -5px;
+            background: #4caf50;
+            color: white;
+            padding: 2px 5px;
+            border-radius: 5px;
+            font-size: 0.7rem;
         }
 
         .modal-actions {
@@ -332,6 +361,42 @@
             color: white;
         }
 
+        .comments-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .view-media-container {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .view-media-container img {
+            max-width: 200px;
+            border-radius: 8px;
+        }
+
+        .view-media-container video {
+            max-width: 300px;
+            border-radius: 8px;
+        }
+
+        .compress-progress {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+
         @media (max-width: 768px) {
             .posts-grid {
                 grid-template-columns: 1fr;
@@ -378,13 +443,24 @@
 
                 <div class="form-group">
                     <label>图片上传</label>
-                    <div class="image-upload-area" onclick="document.getElementById('image-input').click()" ondragover="event.preventDefault()" ondrop="handleDrop(event)">
+                    <div class="upload-area" onclick="document.getElementById('image-input').click()" ondragover="event.preventDefault()" ondrop="handleImageDrop(event)">
                         <div class="upload-icon">📷</div>
                         <p>点击或拖拽图片到此处上传</p>
                         <p style="font-size: 0.85rem; color: #888; margin-top: 5px;">支持 JPG、PNG、GIF、WebP 格式，最多10张，单张最大50MB</p>
                         <input type="file" id="image-input" multiple accept="image/*" onchange="handleImageSelect(event)">
                     </div>
-                    <div class="preview-images" id="preview-container"></div>
+                    <div class="preview-container" id="image-preview-container"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>视频上传</label>
+                    <div class="upload-area" id="video-upload-area" onclick="document.getElementById('video-input').click()" ondragover="event.preventDefault()" ondrop="handleVideoDrop(event)">
+                        <div class="upload-icon">🎬</div>
+                        <p>点击或拖拽视频到此处上传</p>
+                        <p style="font-size: 0.85rem; color: #888; margin-top: 5px;">支持 MP4、MOV、AVI 格式，最多5个，单个最大50MB，大于10MB会自动压缩</p>
+                        <input type="file" id="video-input" multiple accept="video/*" onchange="handleVideoSelect(event)">
+                    </div>
+                    <div class="preview-container" id="video-preview-container"></div>
                 </div>
 
                 <div class="modal-actions">
@@ -399,9 +475,9 @@
         <div class="modal-content">
             <h2 id="view-title"></h2>
             <p id="view-date" style="color: #888; margin-bottom: 20px;"></p>
-            <div id="view-images" class="images-preview" style="margin-bottom: 20px;"></div>
+            <div id="view-media" class="view-media-container"></div>
             <div id="view-content" style="line-height: 1.8; color: #333; margin-bottom: 30px;"></div>
-            
+
             <div class="comments-section">
                 <h3 style="margin-bottom: 15px; color: #333;">评论</h3>
                 <div id="comments-list" style="margin-bottom: 20px;"></div>
@@ -411,7 +487,7 @@
                     <button onclick="submitComment()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">发送</button>
                 </div>
             </div>
-            
+
             <div class="modal-actions" style="margin-top: 30px;">
                 <button class="btn-cancel" onclick="closeViewer()">关闭</button>
             </div>
@@ -419,13 +495,87 @@
     </div>
 
     <script>
-        if (localStorage.getItem('verified') !== 'true') {
+        if (sessionStorage.getItem('verified') !== 'true') {
             window.location.href = '/verify.html';
         }
 
-        let selectedFiles = [];
+        let selectedImages = [];
+        let selectedVideos = [];
         let editingPostId = null;
         let currentViewPostId = null;
+        let ffmpeg = null;
+        let ffmpegLoading = false;
+
+        async function loadFFmpeg() {
+            if (ffmpeg || ffmpegLoading) return;
+
+            ffmpegLoading = true;
+            try {
+                const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+                const { fetchFile } = await import('@ffmpeg/util');
+
+                ffmpeg = new FFmpeg();
+                await ffmpeg.load({
+                    coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js',
+                    wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.wasm'
+                });
+
+                window.ffmpegFetchFile = fetchFile;
+                console.log('FFmpeg loaded successfully');
+            } catch (error) {
+                console.error('Failed to load FFmpeg:', error);
+                alert('视频压缩功能加载失败，将上传原始视频');
+            } finally {
+                ffmpegLoading = false;
+            }
+        }
+
+        async function compressVideo(file) {
+            const inputName = 'input_' + Date.now() + '_' + file.name;
+            const outputName = 'output_' + Date.now() + '.mp4';
+
+            try {
+                await ffmpeg.writeFile(inputName, await window.ffmpegFetchFile(file));
+
+                let crf = 28;
+                let scale = '-2:720';
+
+                if (file.size > 30 * 1024 * 1024) {
+                    scale = '-2:480';
+                    crf = 32;
+                } else if (file.size > 20 * 1024 * 1024) {
+                    scale = '-2:540';
+                    crf = 30;
+                }
+
+                await ffmpeg.exec([
+                    '-i', inputName,
+                    '-vf', `scale=${scale}`,
+                    '-crf', String(crf),
+                    '-c:v', 'libx264',
+                    '-preset', 'fast',
+                    '-c:a', 'aac',
+                    '-b:a', '128k',
+                    '-movflags', '+faststart',
+                    outputName
+                ]);
+
+                const data = await ffmpeg.readFile(outputName);
+                const compressedBlob = new Blob([data.buffer], { type: 'video/mp4' });
+                const compressedFile = new File([compressedBlob], file.name.replace(/\.[^.]+$/, '.mp4'), {
+                    type: 'video/mp4',
+                    lastModified: Date.now()
+                });
+
+                await ffmpeg.deleteFile(inputName);
+                await ffmpeg.deleteFile(outputName);
+
+                return compressedFile;
+            } catch (error) {
+                console.error('Video compression error:', error);
+                return file;
+            }
+        }
 
         async function loadPosts() {
             const container = document.getElementById('posts-container');
@@ -451,6 +601,11 @@
                         <h3>${escapeHtml(post.title)}</h3>
                         <p class="date">${new Date(post.created_at).toLocaleString('zh-CN')}</p>
                         <p class="preview">${escapeHtml(post.content.substring(0, 100))}...</p>
+                        ${post.videos && post.videos.length > 0 ? `
+                            <div class="video-indicator">
+                                🎬 包含${post.videos.length}个视频
+                            </div>
+                        ` : ''}
                         ${post.images && post.images.length > 0 ? `
                             <div class="images-preview">
                                 ${post.images.slice(0, 4).map(img => `<img src="${img}" alt="preview">`).join('')}
@@ -486,11 +641,14 @@
                 submitBtn.textContent = '发布';
                 document.getElementById('post-form').reset();
                 document.getElementById('post-id').value = '';
-                selectedFiles = [];
-                document.getElementById('preview-container').innerHTML = '';
+                selectedImages = [];
+                selectedVideos = [];
+                document.getElementById('image-preview-container').innerHTML = '';
+                document.getElementById('video-preview-container').innerHTML = '';
             }
 
             modal.classList.add('active');
+            loadFFmpeg();
         }
 
         async function loadPostForEdit(postId) {
@@ -502,13 +660,22 @@
                 document.getElementById('post-title').value = post.title;
                 document.getElementById('post-content').value = post.content;
 
-                selectedFiles = [];
-                const previewContainer = document.getElementById('preview-container');
-                previewContainer.innerHTML = '';
+                selectedImages = [];
+                selectedVideos = [];
+                const imagePreviewContainer = document.getElementById('image-preview-container');
+                const videoPreviewContainer = document.getElementById('video-preview-container');
+                imagePreviewContainer.innerHTML = '';
+                videoPreviewContainer.innerHTML = '';
 
                 if (post.images && post.images.length > 0) {
-                    post.images.forEach((img, index) => {
+                    post.images.forEach((img) => {
                         addPreviewImage(img, true);
+                    });
+                }
+
+                if (post.videos && post.videos.length > 0) {
+                    post.videos.forEach((video) => {
+                        addPreviewVideo(video, true);
                     });
                 }
 
@@ -521,11 +688,13 @@
         function closeEditor() {
             document.getElementById('editor-modal').classList.remove('active');
             editingPostId = null;
-            selectedFiles = [];
-            document.getElementById('preview-container').innerHTML = '';
+            selectedImages = [];
+            selectedVideos = [];
+            document.getElementById('image-preview-container').innerHTML = '';
+            document.getElementById('video-preview-container').innerHTML = '';
         }
 
-        function handleDrop(event) {
+        function handleImageDrop(event) {
             event.preventDefault();
             const files = Array.from(event.dataTransfer.files);
             handleImageFiles(files);
@@ -534,6 +703,18 @@
         function handleImageSelect(event) {
             const files = Array.from(event.target.files);
             handleImageFiles(files);
+            event.target.value = '';
+        }
+
+        function handleVideoDrop(event) {
+            event.preventDefault();
+            const files = Array.from(event.dataTransfer.files);
+            handleVideoFiles(files);
+        }
+
+        function handleVideoSelect(event) {
+            const files = Array.from(event.target.files);
+            handleVideoFiles(files);
             event.target.value = '';
         }
 
@@ -563,7 +744,6 @@
                     ctx.drawImage(img, 0, 0, width, height);
 
                     let quality = 0.9;
-                    let compressedBlob;
 
                     const compress = () => {
                         canvas.toBlob((blob) => {
@@ -589,7 +769,7 @@
 
         async function handleImageFiles(files) {
             for (const file of files) {
-                if (selectedFiles.length >= 10) {
+                if (selectedImages.length >= 10) {
                     alert('最多只能上传10张图片');
                     return;
                 }
@@ -609,7 +789,7 @@
                     processedFile = await compressImage(file);
                 }
 
-                selectedFiles.push(processedFile);
+                selectedImages.push(processedFile);
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     addPreviewImage(e.target.result, false, processedFile);
@@ -618,8 +798,81 @@
             }
         }
 
+        async function handleVideoFiles(files) {
+            const uploadArea = document.getElementById('video-upload-area');
+
+            for (const file of files) {
+                if (selectedVideos.length >= 5) {
+                    alert('最多只能上传5个视频');
+                    return;
+                }
+
+                if (!file.type.startsWith('video/')) {
+                    alert('请选择视频文件');
+                    return;
+                }
+
+                if (file.size > 50 * 1024 * 1024) {
+                    alert('视频大小不能超过50MB');
+                    return;
+                }
+
+                let processedFile = file;
+                let isCompressed = false;
+
+                if (file.size > 10 * 1024 * 1024) {
+                    if (!ffmpeg) {
+                        await loadFFmpeg();
+                    }
+
+                    if (ffmpeg) {
+                        uploadArea.classList.add('disabled');
+
+                        const previewDiv = document.createElement('div');
+                        previewDiv.className = 'preview-item';
+                        previewDiv.style.position = 'relative';
+
+                        const video = document.createElement('video');
+                        video.src = URL.createObjectURL(file);
+                        video.controls = true;
+                        video.style.width = '100%';
+                        video.style.height = '100%';
+                        previewDiv.appendChild(video);
+
+                        const progressDiv = document.createElement('div');
+                        progressDiv.className = 'compress-progress';
+                        progressDiv.textContent = '压缩中...';
+                        previewDiv.appendChild(progressDiv);
+
+                        document.getElementById('video-preview-container').appendChild(previewDiv);
+
+                        try {
+                            processedFile = await compressVideo(file);
+                            isCompressed = processedFile.size < file.size;
+
+                            document.getElementById('video-preview-container').removeChild(previewDiv);
+                        } catch (error) {
+                            console.error('Compression failed:', error);
+                            document.getElementById('video-preview-container').removeChild(previewDiv);
+                        }
+
+                        uploadArea.classList.remove('disabled');
+                    } else {
+                        alert('视频压缩功能不可用，将尝试上传原始文件');
+                    }
+                }
+
+                selectedVideos.push(processedFile);
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    addPreviewVideo(e.target.result, false, processedFile, isCompressed);
+                };
+                reader.readAsDataURL(processedFile);
+            }
+        }
+
         function addPreviewImage(src, isExisting = false, file = null) {
-            const container = document.getElementById('preview-container');
+            const container = document.getElementById('image-preview-container');
             const div = document.createElement('div');
             div.className = 'preview-item';
 
@@ -636,6 +889,34 @@
             container.appendChild(div);
         }
 
+        function addPreviewVideo(src, isExisting = false, file = null, isCompressed = false) {
+            const container = document.getElementById('video-preview-container');
+            const div = document.createElement('div');
+            div.className = 'preview-item';
+
+            const video = document.createElement('video');
+            video.src = src;
+            video.controls = true;
+            video.style.width = '100%';
+            video.style.height = '100%';
+            div.appendChild(video);
+
+            if (isCompressed) {
+                const indicator = document.createElement('div');
+                indicator.className = 'compress-indicator';
+                indicator.textContent = '已压缩';
+                div.appendChild(indicator);
+            }
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-btn';
+            removeBtn.innerHTML = '×';
+            removeBtn.onclick = () => removePreviewVideo(div, isExisting, file);
+            div.appendChild(removeBtn);
+
+            container.appendChild(div);
+        }
+
         function removePreviewImage(element, isExisting, file) {
             if (isExisting) {
                 const img = element.querySelector('img');
@@ -643,7 +924,7 @@
                 const postId = document.getElementById('post-id').value;
 
                 if (postId && confirm('确定要删除这张图片吗？')) {
-                    const imageIndex = Array.from(document.querySelectorAll('.preview-item img'))
+                    const imageIndex = Array.from(document.querySelectorAll('#image-preview-container .preview-item img'))
                         .findIndex(img => img.src === src);
 
                     if (imageIndex !== -1) {
@@ -661,7 +942,37 @@
                     }
                 }
             } else if (file) {
-                selectedFiles = selectedFiles.filter(f => f !== file);
+                selectedImages = selectedImages.filter(f => f !== file);
+                element.remove();
+            }
+        }
+
+        function removePreviewVideo(element, isExisting, file) {
+            if (isExisting) {
+                const video = element.querySelector('video');
+                const src = video.src;
+                const postId = document.getElementById('post-id').value;
+
+                if (postId && confirm('确定要删除这个视频吗？')) {
+                    const videoIndex = Array.from(document.querySelectorAll('#video-preview-container .preview-item video'))
+                        .findIndex(v => v.src === src);
+
+                    if (videoIndex !== -1) {
+                        fetch(`/api/posts/${postId}/videos/${videoIndex}`, {
+                            method: 'DELETE'
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            element.remove();
+                        })
+                        .catch(err => {
+                            alert('删除视频失败');
+                            console.error(err);
+                        });
+                    }
+                }
+            } else if (file) {
+                selectedVideos = selectedVideos.filter(f => f !== file);
                 element.remove();
             }
         }
@@ -677,8 +988,13 @@
             formData.append('title', title);
             formData.append('content', content);
 
-            const newFiles = selectedFiles.filter(f => f instanceof File);
-            newFiles.forEach(file => {
+            const newImageFiles = selectedImages.filter(f => f instanceof File);
+            newImageFiles.forEach(file => {
+                formData.append('images', file);
+            });
+
+            const newVideoFiles = selectedVideos.filter(f => f instanceof File);
+            newVideoFiles.forEach(file => {
                 formData.append('images', file);
             });
 
@@ -715,15 +1031,23 @@
                 document.getElementById('view-date').textContent = new Date(post.created_at).toLocaleString('zh-CN');
                 document.getElementById('view-content').textContent = post.content;
 
-                const imagesContainer = document.getElementById('view-images');
-                imagesContainer.innerHTML = '';
+                const mediaContainer = document.getElementById('view-media');
+                mediaContainer.innerHTML = '';
+
                 if (post.images && post.images.length > 0) {
                     post.images.forEach(img => {
                         const imgEl = document.createElement('img');
                         imgEl.src = img;
-                        imgEl.style.maxWidth = '200px';
-                        imgEl.style.marginRight = '10px';
-                        imagesContainer.appendChild(imgEl);
+                        mediaContainer.appendChild(imgEl);
+                    });
+                }
+
+                if (post.videos && post.videos.length > 0) {
+                    post.videos.forEach(video => {
+                        const videoEl = document.createElement('video');
+                        videoEl.src = video;
+                        videoEl.controls = true;
+                        mediaContainer.appendChild(videoEl);
                     });
                 }
 
@@ -798,7 +1122,7 @@
         }
 
         async function deletePost(postId) {
-            if (!confirm('确定要删除这篇日志吗？此操作不可恢复。')) {
+            if (!confirm('确定要删除这条日志吗？')) {
                 return;
             }
 
@@ -825,21 +1149,6 @@
             div.textContent = text;
             return div.innerHTML;
         }
-
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    modal.classList.remove('active');
-                }
-            });
-        });
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                closeEditor();
-                closeViewer();
-            }
-        });
 
         loadPosts();
     </script>
