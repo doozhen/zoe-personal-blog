@@ -377,6 +377,10 @@
 
         .view-media-container {
             margin-bottom: 20px;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
         }
 
         .image-grid {
@@ -385,6 +389,8 @@
             gap: 6px;
             margin: 10px 0;
             width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .image-item {
@@ -393,6 +399,7 @@
             overflow: hidden;
             border-radius: 6px;
             cursor: pointer;
+            box-sizing: border-box;
         }
 
         .image-item img {
@@ -400,6 +407,7 @@
             height: 100%;
             object-fit: cover;
             transition: transform 0.3s ease;
+            box-sizing: border-box;
         }
 
         .image-item:hover img {
@@ -410,6 +418,11 @@
             max-width: 100%;
             border-radius: 8px;
             margin: 10px 0;
+        }
+
+        .view-modal-content {
+            box-sizing: border-box;
+            overflow: hidden;
         }
 
         .compress-progress {
@@ -453,12 +466,12 @@
         display: flex;
     }
 
-    .modal-content {
+    .image-modal-content {
         max-width: 90%;
         max-height: 90%;
     }
 
-    .modal-content img {
+    .image-modal-content img {
         max-width: 100%;
         max-height: 80vh;
         border-radius: 10px;
@@ -550,7 +563,7 @@
     </div>
 
     <div class="modal" id="view-modal">
-        <div class="modal-content">
+        <div class="modal-content view-modal-content">
             <h2 id="view-title"></h2>
             <p id="view-date" style="color: #888; margin-bottom: 20px;"></p>
             <div id="view-media" class="view-media-container"></div>
@@ -596,7 +609,7 @@
 
     <div class="image-modal" id="image-modal">
         <span class="close-modal" onclick="closeImageModal()">&times;</span>
-        <div class="modal-content">
+        <div class="image-modal-content">
             <img id="modal-image" src="" alt="Large image">
         </div>
     </div>
