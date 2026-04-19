@@ -51,9 +51,9 @@ const storage = new CloudinaryStorage({
     params: {
         folder: 'zoe-blog',
         allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-        transformation: [{ quality: 'auto', fetch_format: 'auto' }],
-        maxFileSize: 50 * 1024 * 1024
-    }
+        transformation: [{ quality: 'auto', fetch_format: 'auto' }]
+    },
+    maxFileSize: 50 * 1024 * 1024
 });
 
 const upload = multer({
