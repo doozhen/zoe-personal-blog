@@ -348,7 +348,7 @@
     <div class="container">
         <header>
             <h1>Zoe's Blog</h1>
-            <p>记录生活，分享美好</p>
+            <p>zoe乱七八糟的的的的的博客</p>
             <div class="nav">
                 <button class="nav-btn" onclick="openEditor()">撰写新日志</button>
                 <button class="nav-btn" onclick="loadPosts()">刷新列表</button>
@@ -419,7 +419,7 @@
     </div>
 
     <script>
-        if (sessionStorage.getItem('verified') !== 'true') {
+        if (localStorage.getItem('verified') !== 'true') {
             window.location.href = '/verify.html';
         }
 
