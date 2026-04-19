@@ -31,24 +31,7 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Access log middleware
-app.use(async (req, res, next) => {
-    // Only log GET requests to the main page
-    if (req.method === 'GET' && (req.path === '/' || req.path === '/index.html')) {
-        try {
-            const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-            const userAgent = req.headers['user-agent'];
-            
-            await pool.query(
-                'INSERT INTO access_logs (ip_address, user_agent) VALUES ($1, $2)',
-                [ipAddress, userAgent]
-            );
-        } catch (error) {
-            console.error('Error logging access:', error);
-        }
-    }
-    next();
-});
+// Access log middleware - removed, will log only on verified visitor
 
 const initDb = async () => {
     const client = await pool.connect();
@@ -590,8 +573,27 @@ app.delete('/api/guestbook/:id', async (req, res) => {
     }
 });
 
-// Get access logs (admin only)
+app.post('/api/log-access', async (req, res) => {
+    try {
+        const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+        const userAgent = req.headers['user-agent'];
+
+        await pool.query(
+            'INSERT INTO access_logs (ip_address, user_agent) VALUES ($1, $2)',
+            [ipAddress, userAgent]
+        );
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error logging access:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.get('/api/access-logs', async (req, res) => {
+    const adminKey = req.headers['x-admin-key'];
+    if (adminKey !== 'zoeadmin') {
+        return res.status(403).json({ error: 'Unauthorized' });
+    }
     try {
         const result = await pool.query('SELECT * FROM access_logs ORDER BY accessed_at DESC');
         res.json(result.rows);
