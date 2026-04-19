@@ -1358,21 +1358,31 @@
 
                 if (!file.type.startsWith('image/')) continue;
 
-                selectedGuestbookImages.push(file);
+                if (file.size > 50 * 1024 * 1024) {
+                    alert('图片大小不能超过50MB');
+                    continue;
+                }
+
+                let processedFile = file;
+                if (file.size > 10 * 1024 * 1024) {
+                    processedFile = await compressImage(file);
+                }
+
+                selectedGuestbookImages.push(processedFile);
 
                 const preview = document.createElement('div');
                 preview.className = 'preview-item';
-                preview.dataset.filename = file.name;
+                preview.dataset.filename = processedFile.name;
 
                 const img = document.createElement('img');
-                img.src = URL.createObjectURL(file);
+                img.src = URL.createObjectURL(processedFile);
 
                 const removeBtn = document.createElement('button');
                 removeBtn.type = 'button';
                 removeBtn.className = 'remove-btn';
                 removeBtn.innerHTML = '×';
                 removeBtn.onclick = () => {
-                    selectedGuestbookImages = selectedGuestbookImages.filter(f => f !== file);
+                    selectedGuestbookImages = selectedGuestbookImages.filter(f => f !== processedFile);
                     preview.remove();
                 };
 
@@ -1384,16 +1394,27 @@
             event.target.value = '';
         }
 
+        let isGuestbookSubmitting = false;
+
         document.getElementById('guestbook-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            if (isGuestbookSubmitting) {
+                return;
+            }
+
             const title = document.getElementById('guestbook-title-input').value.trim();
             const content = document.getElementById('guestbook-content-input').value.trim();
+            const submitBtn = document.getElementById('guestbook-submit-btn');
 
             if (!title || !content) {
                 alert('请填写标题和内容');
                 return;
             }
+
+            isGuestbookSubmitting = true;
+            submitBtn.disabled = true;
+            submitBtn.textContent = '发布中...';
 
             const formData = new FormData();
             formData.append('title', title);
@@ -1413,6 +1434,7 @@
                 if (response.ok) {
                     alert('留言已发布');
                     closeGuestbook();
+                    loadPosts();
                 } else {
                     const error = await response.json();
                     alert(error.error || '留言失败');
@@ -1420,6 +1442,10 @@
             } catch (error) {
                 alert('留言失败，请重试');
                 console.error('Error submitting guestbook:', error);
+            } finally {
+                isGuestbookSubmitting = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = '发布';
             }
         });
 
