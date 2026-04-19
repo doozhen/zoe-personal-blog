@@ -502,6 +502,7 @@
                 <button class="nav-btn" onclick="openEditor()" id="new-post-btn">撰写新日志</button>
                 <button class="nav-btn" onclick="openGuestbook()">留言</button>
                 <button class="nav-btn" onclick="loadPosts()">刷新列表</button>
+                <button class="nav-btn" onclick="openAccessLogs()" id="access-logs-btn" style="display: none;">访问日志</button>
             </div>
         </header>
 
@@ -617,11 +618,25 @@
         </div>
     </div>
 
+    <div class="modal" id="access-logs-modal">
+        <div class="modal-content">
+            <h2>访问日志</h2>
+            <div id="access-logs-container" style="margin-bottom: 30px;">
+                <div class="loading">加载中...</div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeAccessLogs()">关闭</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const isOwner = sessionStorage.getItem('isOwner') === 'true';
         
         if (!isOwner) {
             document.getElementById('new-post-btn').style.display = 'none';
+        } else {
+            document.getElementById('access-logs-btn').style.display = 'block';
         }
 
         let selectedImages = [];
@@ -1424,6 +1439,59 @@
                 closeImageModal();
             }
         });
+
+        function openAccessLogs() {
+            const modal = document.getElementById('access-logs-modal');
+            modal.classList.add('active');
+            loadAccessLogs();
+        }
+
+        function closeAccessLogs() {
+            document.getElementById('access-logs-modal').classList.remove('active');
+        }
+
+        async function loadAccessLogs() {
+            const container = document.getElementById('access-logs-container');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+
+            try {
+                const response = await fetch('/api/access-logs');
+                const logs = await response.json();
+
+                if (logs.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: #888;">暂无访问日志</p>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            <thead>
+                                <tr style="background-color: #f8f9fa;">
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e0e0e0;">ID</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e0e0e0;">IP地址</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e0e0e0;">用户代理</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e0e0e0;">访问时间</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${logs.map(log => `
+                                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                                        <td style="padding: 12px;">${log.id}</td>
+                                        <td style="padding: 12px;">${escapeHtml(log.ip_address)}</td>
+                                        <td style="padding: 12px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(log.user_agent || '-')}</td>
+                                        <td style="padding: 12px;">${new Date(log.accessed_at).toLocaleString('zh-CN')}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } catch (error) {
+                container.innerHTML = '<p style="text-align: center; color: #ff6b6b;">加载日志失败，请刷新重试</p>';
+                console.error('Error loading access logs:', error);
+            }
+        }
 
         async function editPost(postId) {
             openEditor(postId);

@@ -31,6 +31,25 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
+// Access log middleware
+app.use(async (req, res, next) => {
+    // Only log GET requests to the main page
+    if (req.method === 'GET' && (req.path === '/' || req.path === '/index.html')) {
+        try {
+            const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+            const userAgent = req.headers['user-agent'];
+            
+            await pool.query(
+                'INSERT INTO access_logs (ip_address, user_agent) VALUES ($1, $2)',
+                [ipAddress, userAgent]
+            );
+        } catch (error) {
+            console.error('Error logging access:', error);
+        }
+    }
+    next();
+});
+
 const initDb = async () => {
     const client = await pool.connect();
     try {
@@ -115,6 +134,16 @@ const initDb = async () => {
                 throw error;
             }
         }
+
+        // Create access logs table if it doesn't exist
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS access_logs (
+                id SERIAL PRIMARY KEY,
+                ip_address TEXT NOT NULL,
+                user_agent TEXT,
+                accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
 
         await client.query('COMMIT');
     } catch (error) {
@@ -557,6 +586,17 @@ app.delete('/api/guestbook/:id', async (req, res) => {
         res.json({ message: 'Guestbook entry deleted successfully' });
     } catch (error) {
         console.error('Error deleting guestbook entry:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get access logs (admin only)
+app.get('/api/access-logs', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM access_logs ORDER BY accessed_at DESC');
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching access logs:', error);
         res.status(500).json({ error: error.message });
     }
 });
