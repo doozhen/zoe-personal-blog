@@ -48,12 +48,10 @@ const initDb = async () => {
 
         // Add videos column to posts table if it doesn't exist
         try {
-            await client.query('ALTER TABLE posts ADD COLUMN videos TEXT');
-            console.log('Added videos column to posts table');
+            await client.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS videos TEXT');
+            console.log('Added videos column to posts table if it didn\'t exist');
         } catch (error) {
-            if (!error.message.includes('column "videos" of relation "posts" already exists')) {
-                throw error;
-            }
+            console.log('Error adding videos column to posts table:', error.message);
         }
 
         // Create comments table if it doesn't exist
