@@ -40,6 +40,16 @@ const initDb = async () => {
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS comments (
+                id SERIAL PRIMARY KEY,
+                post_id INTEGER NOT NULL,
+                author TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+            )
+        `);
         console.log('Database initialized');
     } finally {
         client.release();
@@ -231,6 +241,62 @@ app.use((err, req, res, next) => {
         return res.status(400).json({ error: err.message });
     }
     next();
+});
+
+app.get('/api/posts/:postId/comments', async (req, res) => {
+    try {
+        const { postId } = req.params;
+        const result = await pool.query(
+            'SELECT * FROM comments WHERE post_id = $1 ORDER BY created_at DESC',
+            [postId]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching comments:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/posts/:postId/comments', async (req, res) => {
+    try {
+        const { postId } = req.params;
+        const { author, content } = req.body;
+
+        if (!author || !content) {
+            return res.status(400).json({ error: 'Author and content are required' });
+        }
+
+        const postCheck = await pool.query('SELECT id FROM posts WHERE id = $1', [postId]);
+        if (postCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Post not found' });
+        }
+
+        const result = await pool.query(
+            'INSERT INTO comments (post_id, author, content) VALUES ($1, $2, $3) RETURNING *',
+            [postId, author, content]
+        );
+
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error('Error creating comment:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/comments/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query('DELETE FROM comments WHERE id = $1 RETURNING *', [id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Comment not found' });
+        }
+
+        res.json({ message: 'Comment deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting comment:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 initDb().then(() => {

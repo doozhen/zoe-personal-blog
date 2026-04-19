@@ -400,8 +400,19 @@
             <h2 id="view-title"></h2>
             <p id="view-date" style="color: #888; margin-bottom: 20px;"></p>
             <div id="view-images" class="images-preview" style="margin-bottom: 20px;"></div>
-            <div id="view-content" style="line-height: 1.8; color: #333;"></div>
-            <div class="modal-actions">
+            <div id="view-content" style="line-height: 1.8; color: #333; margin-bottom: 30px;"></div>
+            
+            <div class="comments-section">
+                <h3 style="margin-bottom: 15px; color: #333;">评论</h3>
+                <div id="comments-list" style="margin-bottom: 20px;"></div>
+                <div class="comment-form">
+                    <input type="text" id="comment-author" placeholder="你的名字" style="width: 30%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; margin-right: 10px;">
+                    <input type="text" id="comment-content" placeholder="写下你的评论..." style="width: 50%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; margin-right: 10px;">
+                    <button onclick="submitComment()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">发送</button>
+                </div>
+            </div>
+            
+            <div class="modal-actions" style="margin-top: 30px;">
                 <button class="btn-cancel" onclick="closeViewer()">关闭</button>
             </div>
         </div>
@@ -410,6 +421,7 @@
     <script>
         let selectedFiles = [];
         let editingPostId = null;
+        let currentViewPostId = null;
 
         async function loadPosts() {
             const container = document.getElementById('posts-container');
@@ -690,6 +702,7 @@
         });
 
         async function viewPost(postId) {
+            currentViewPostId = postId;
             try {
                 const response = await fetch(`/api/posts/${postId}`);
                 const post = await response.json();
@@ -710,10 +723,65 @@
                     });
                 }
 
+                await loadComments(postId);
                 document.getElementById('view-modal').classList.add('active');
             } catch (error) {
                 alert('加载日志失败');
                 console.error('Error viewing post:', error);
+            }
+        }
+
+        async function loadComments(postId) {
+            try {
+                const response = await fetch(`/api/posts/${postId}/comments`);
+                const comments = await response.json();
+                const commentsList = document.getElementById('comments-list');
+
+                if (comments.length === 0) {
+                    commentsList.innerHTML = '<p style="color: #888;">暂无评论，来发表第一条评论吧！</p>';
+                    return;
+                }
+
+                commentsList.innerHTML = comments.map(comment => `
+                    <div style="background: #f5f5f5; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <strong style="color: #667eea;">${escapeHtml(comment.author)}</strong>
+                            <span style="color: #888; font-size: 0.85rem;">${new Date(comment.created_at).toLocaleString('zh-CN')}</span>
+                        </div>
+                        <p style="margin: 0; color: #333;">${escapeHtml(comment.content)}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading comments:', error);
+            }
+        }
+
+        async function submitComment() {
+            const author = document.getElementById('comment-author').value.trim();
+            const content = document.getElementById('comment-content').value.trim();
+
+            if (!author || !content) {
+                alert('请填写昵称和评论内容');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/posts/${currentViewPostId}/comments`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ author, content })
+                });
+
+                if (response.ok) {
+                    document.getElementById('comment-content').value = '';
+                    await loadComments(currentViewPostId);
+                } else {
+                    const error = await response.json();
+                    alert(error.error || '评论失败');
+                }
+            } catch (error) {
+                alert('评论失败，请重试');
+                console.error('Error submitting comment:', error);
             }
         }
 
