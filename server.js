@@ -76,7 +76,16 @@ const initDb = async () => {
         `);
 
         try {
-            await client.query('ALTER TABLE guestbook ADD COLUMN title TEXT');
+            await client.query('ALTER TABLE guestbook DROP COLUMN author');
+            console.log('Dropped author column from guestbook table');
+        } catch (error) {
+            if (!error.message.includes('column "author" of relation "guestbook" does not exist')) {
+                console.log('author column may not exist or other error:', error.message);
+            }
+        }
+
+        try {
+            await client.query('ALTER TABLE guestbook ADD COLUMN title TEXT NOT NULL DEFAULT \'\'');
             console.log('Added title column to guestbook table');
         } catch (error) {
             if (!error.message.includes('column "title" of relation "guestbook" already exists')) {
