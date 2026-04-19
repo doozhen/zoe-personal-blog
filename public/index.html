@@ -81,6 +81,7 @@
             padding: 25px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
+            cursor: pointer;
         }
 
         .post-card:hover {
@@ -634,7 +635,7 @@
                 }
 
                 container.innerHTML = '<div class="posts-grid">' + posts.map(post => `
-                    <div class="post-card">
+                    <div class="post-card" onclick="viewPost(${post.id})">
                         <h3>${escapeHtml(post.title)}</h3>
                         <p class="date">${new Date(post.created_at).toLocaleString('zh-CN')}</p>
                         <p class="preview">${escapeHtml(post.content.substring(0, 100))}...</p>
@@ -649,13 +650,12 @@
                                 ${post.images.length > 4 ? `<span>+${post.images.length - 4}</span>` : ''}
                             </div>
                         ` : ''}
-                        <div class="post-actions">
-                            <button class="btn-edit" onclick="viewPost(${post.id})">查看</button>
-                            ${isOwner ? `
+                        ${isOwner ? `
+                            <div class="post-actions" onclick="event.stopPropagation()">
                                 <button class="btn-edit" onclick="editPost(${post.id})">编辑</button>
                                 <button class="btn-delete" onclick="deletePost(${post.id})">删除</button>
-                            ` : ''}
-                        </div>
+                            </div>
+                        ` : ''}
                     </div>
                 `).join('') + '</div>';
 
