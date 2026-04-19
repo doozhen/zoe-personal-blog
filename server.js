@@ -67,11 +67,41 @@ const initDb = async () => {
         await client.query(`
             CREATE TABLE IF NOT EXISTS guestbook (
                 id SERIAL PRIMARY KEY,
-                author TEXT NOT NULL,
+                title TEXT NOT NULL,
                 content TEXT NOT NULL,
+                images TEXT,
+                videos TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+
+        try {
+            await client.query('ALTER TABLE guestbook ADD COLUMN title TEXT');
+            console.log('Added title column to guestbook table');
+        } catch (error) {
+            if (!error.message.includes('column "title" of relation "guestbook" already exists')) {
+                console.log('title column may already exist or other error:', error.message);
+            }
+        }
+
+        try {
+            await client.query('ALTER TABLE guestbook ADD COLUMN images TEXT');
+            console.log('Added images column to guestbook table');
+        } catch (error) {
+            if (!error.message.includes('column "images" of relation "guestbook" already exists')) {
+                console.log('images column may already exist or other error:', error.message);
+            }
+        }
+
+        try {
+            await client.query('ALTER TABLE guestbook ADD COLUMN videos TEXT');
+            console.log('Added videos column to guestbook table');
+        } catch (error) {
+            if (!error.message.includes('column "videos" of relation "guestbook" already exists')) {
+                console.log('videos column may already exist or other error:', error.message);
+            }
+        }
+
         console.log('Database initialized');
     } finally {
         client.release();
@@ -388,17 +418,39 @@ app.get('/api/guestbook', async (req, res) => {
     }
 });
 
-app.post('/api/guestbook', async (req, res) => {
+app.post('/api/guestbook', upload.fields([{ name: 'images', maxCount: 9 }, { name: 'videos', maxCount: 5 }]), async (req, res) => {
     try {
-        const { author, content } = req.body;
+        const { title, content } = req.body;
 
-        if (!author || !content) {
-            return res.status(400).json({ error: 'Author and content are required' });
+        if (!title || !content) {
+            return res.status(400).json({ error: 'Title and content are required' });
+        }
+
+        const images = [];
+        const videos = [];
+
+        if (req.files && req.files['images']) {
+            for (const file of req.files['images']) {
+                const result = await cloudinary.uploader.upload(`data:${file.mimetype};base64,${file.buffer.toString('base64')}`, {
+                    folder: 'zoe-blog/guestbook'
+                });
+                images.push(result.secure_url);
+            }
+        }
+
+        if (req.files && req.files['videos']) {
+            for (const file of req.files['videos']) {
+                const result = await cloudinary.uploader.upload(`data:${file.mimetype};base64,${file.buffer.toString('base64')}`, {
+                    folder: 'zoe-blog/guestbook',
+                    resource_type: 'video'
+                });
+                videos.push(result.secure_url);
+            }
         }
 
         const result = await pool.query(
-            'INSERT INTO guestbook (author, content) VALUES ($1, $2) RETURNING *',
-            [author, content]
+            'INSERT INTO guestbook (title, content, images, videos) VALUES ($1, $2, $3, $4) RETURNING *',
+            [title, content, JSON.stringify(images), JSON.stringify(videos)]
         );
 
         res.status(201).json(result.rows[0]);
