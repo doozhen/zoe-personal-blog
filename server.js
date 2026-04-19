@@ -34,6 +34,7 @@ const pool = new Pool({
 const initDb = async () => {
     const client = await pool.connect();
     try {
+        // Create posts table if it doesn't exist
         await client.query(`
             CREATE TABLE IF NOT EXISTS posts (
                 id SERIAL PRIMARY KEY,
@@ -44,7 +45,8 @@ const initDb = async () => {
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
-        
+
+        // Add videos column to posts table if it doesn't exist
         try {
             await client.query('ALTER TABLE posts ADD COLUMN videos TEXT');
             console.log('Added videos column to posts table');
@@ -53,6 +55,8 @@ const initDb = async () => {
                 throw error;
             }
         }
+
+        // Create comments table if it doesn't exist
         await client.query(`
             CREATE TABLE IF NOT EXISTS comments (
                 id SERIAL PRIMARY KEY,
@@ -63,7 +67,8 @@ const initDb = async () => {
                 FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
             )
         `);
-        
+
+        // Create guestbook table if it doesn't exist
         await client.query(`
             CREATE TABLE IF NOT EXISTS guestbook (
                 id SERIAL PRIMARY KEY,
@@ -75,43 +80,49 @@ const initDb = async () => {
             )
         `);
 
+        // Drop author column from guestbook table if it exists
         try {
-            await client.query('ALTER TABLE guestbook DROP COLUMN author');
-            console.log('Dropped author column from guestbook table');
+            await client.query('ALTER TABLE guestbook DROP COLUMN IF EXISTS author');
+            console.log('Dropped author column from guestbook table if it existed');
         } catch (error) {
-            if (!error.message.includes('column "author" of relation "guestbook" does not exist')) {
-                console.log('author column may not exist or other error:', error.message);
-            }
+            console.log('Error dropping author column:', error.message);
         }
 
+        // Add title column to guestbook table if it doesn't exist
         try {
-            await client.query('ALTER TABLE guestbook ADD COLUMN title TEXT NOT NULL DEFAULT \'\'');
-            console.log('Added title column to guestbook table');
+            await client.query('ALTER TABLE guestbook ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT \'\'');
+            console.log('Added title column to guestbook table if it didn\'t exist');
         } catch (error) {
             if (!error.message.includes('column "title" of relation "guestbook" already exists')) {
-                console.log('title column may already exist or other error:', error.message);
+                throw error;
             }
         }
 
+        // Add images column to guestbook table if it doesn't exist
         try {
-            await client.query('ALTER TABLE guestbook ADD COLUMN images TEXT');
-            console.log('Added images column to guestbook table');
+            await client.query('ALTER TABLE guestbook ADD COLUMN IF NOT EXISTS images TEXT');
+            console.log('Added images column to guestbook table if it didn\'t exist');
         } catch (error) {
             if (!error.message.includes('column "images" of relation "guestbook" already exists')) {
-                console.log('images column may already exist or other error:', error.message);
+                throw error;
             }
         }
 
+        // Add videos column to guestbook table if it doesn't exist
         try {
-            await client.query('ALTER TABLE guestbook ADD COLUMN videos TEXT');
-            console.log('Added videos column to guestbook table');
+            await client.query('ALTER TABLE guestbook ADD COLUMN IF NOT EXISTS videos TEXT');
+            console.log('Added videos column to guestbook table if it didn\'t exist');
         } catch (error) {
             if (!error.message.includes('column "videos" of relation "guestbook" already exists')) {
-                console.log('videos column may already exist or other error:', error.message);
+                throw error;
             }
         }
 
-        console.log('Database initialized');
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error initializing database:', error);
+        throw error;
     } finally {
         client.release();
     }
