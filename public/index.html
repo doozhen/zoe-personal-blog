@@ -376,20 +376,39 @@
         }
 
         .view-media-container {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
             margin-bottom: 20px;
         }
 
-        .view-media-container img {
-            max-width: 200px;
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .image-item {
+            position: relative;
+            aspect-ratio: 1;
+            overflow: hidden;
             border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .image-item:hover img {
+            transform: scale(1.05);
         }
 
         .view-media-container video {
-            max-width: 300px;
+            max-width: 100%;
             border-radius: 8px;
+            margin: 10px 0;
         }
 
         .compress-progress {
@@ -410,11 +429,55 @@
             }
 
             .modal-content {
-                padding: 25px;
-                margin: 20px auto;
-            }
+            padding: 25px;
+            margin: 20px auto;
         }
-    </style>
+    }
+
+    .image-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        display: none;
+    }
+
+    .image-modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        max-width: 90%;
+        max-height: 90%;
+    }
+
+    .modal-content img {
+        max-width: 100%;
+        max-height: 80vh;
+        border-radius: 10px;
+    }
+
+    .close-modal {
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        color: white;
+        font-size: 40px;
+        font-weight: bold;
+        cursor: pointer;
+        z-index: 1001;
+    }
+
+    .close-modal:hover {
+        color: #ccc;
+    }
+</style>
 </head>
 <body>
     <div class="container">
@@ -527,6 +590,13 @@
                     <button type="submit" class="btn-submit" id="guestbook-submit-btn">发布</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div class="image-modal" id="image-modal">
+        <span class="close-modal" onclick="closeImageModal()">&times;</span>
+        <div class="modal-content">
+            <img id="modal-image" src="" alt="Large image">
         </div>
     </div>
 
@@ -1126,11 +1196,23 @@
                 mediaContainer.innerHTML = '';
 
                 if (post.images && post.images.length > 0) {
-                    post.images.forEach(img => {
+                    const imageGrid = document.createElement('div');
+                    imageGrid.className = 'image-grid';
+                    
+                    post.images.forEach((img, index) => {
+                        const imgContainer = document.createElement('div');
+                        imgContainer.className = 'image-item';
+                        
                         const imgEl = document.createElement('img');
                         imgEl.src = img;
-                        mediaContainer.appendChild(imgEl);
+                        imgEl.alt = `Image ${index + 1}`;
+                        imgEl.onclick = () => openImageModal(img);
+                        
+                        imgContainer.appendChild(imgEl);
+                        imageGrid.appendChild(imgContainer);
                     });
+                    
+                    mediaContainer.appendChild(imageGrid);
                 }
 
                 if (post.videos && post.videos.length > 0) {
@@ -1216,6 +1298,23 @@
         function closeGuestbook() {
             document.getElementById('guestbook-modal').classList.remove('active');
         }
+
+        function openImageModal(imageSrc) {
+            const modal = document.getElementById('image-modal');
+            const modalImage = document.getElementById('modal-image');
+            modalImage.src = imageSrc;
+            modal.classList.add('active');
+        }
+
+        function closeImageModal() {
+            document.getElementById('image-modal').classList.remove('active');
+        }
+
+        document.getElementById('image-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeImageModal();
+            }
+        });
 
         document.getElementById('guestbook-form').addEventListener('submit', async (e) => {
             e.preventDefault();
