@@ -378,10 +378,10 @@
 
                 <div class="form-group">
                     <label>图片上传</label>
-                    <div class="image-upload-area" onclick="document.getElementById('image-input').click()">
+                    <div class="image-upload-area" onclick="document.getElementById('image-input').click()" ondragover="event.preventDefault()" ondrop="handleDrop(event)">
                         <div class="upload-icon">📷</div>
                         <p>点击或拖拽图片到此处上传</p>
-                        <p style="font-size: 0.85rem; color: #888; margin-top: 5px;">支持 JPG、PNG、GIF、WebP 格式，最多10张</p>
+                        <p style="font-size: 0.85rem; color: #888; margin-top: 5px;">支持 JPG、PNG、GIF、WebP 格式，最多10张，单张最大50MB</p>
                         <input type="file" id="image-input" multiple accept="image/*" onchange="handleImageSelect(event)">
                     </div>
                     <div class="preview-images" id="preview-container"></div>
@@ -509,9 +509,19 @@
             document.getElementById('preview-container').innerHTML = '';
         }
 
+        function handleDrop(event) {
+            event.preventDefault();
+            const files = Array.from(event.dataTransfer.files);
+            handleImageFiles(files);
+        }
+
         function handleImageSelect(event) {
             const files = Array.from(event.target.files);
+            handleImageFiles(files);
+            event.target.value = '';
+        }
 
+        function handleImageFiles(files) {
             files.forEach(file => {
                 if (selectedFiles.length >= 10) {
                     alert('最多只能上传10张图片');
@@ -523,6 +533,11 @@
                     return;
                 }
 
+                if (file.size > 50 * 1024 * 1024) {
+                    alert('图片大小不能超过50MB');
+                    return;
+                }
+
                 selectedFiles.push(file);
                 const reader = new FileReader();
                 reader.onload = (e) => {
@@ -530,8 +545,6 @@
                 };
                 reader.readAsDataURL(file);
             });
-
-            event.target.value = '';
         }
 
         function addPreviewImage(src, isExisting = false, file = null) {

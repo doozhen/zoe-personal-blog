@@ -50,13 +50,13 @@ const storage = new CloudinaryStorage({
     params: {
         folder: 'zoe-blog',
         allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-        transformation: [{ width: 2000, height: 2000, crop: 'limit' }]
+        transformation: [{ quality: 'auto', fetch_format: 'auto' }]
     }
 });
 
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 }
+    limits: { fileSize: 50 * 1024 * 1024 }
 });
 
 app.get('/api/posts', async (req, res) => {
