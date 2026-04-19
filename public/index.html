@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zoe's Blog</title>
+    <script>
+        if (sessionStorage.getItem('verified') !== 'true') {
+            window.location.href = '/verify.html';
+        }
+    </script>
     <style>
         * {
             margin: 0;
@@ -525,10 +530,6 @@
     </div>
 
     <script>
-        if (sessionStorage.getItem('verified') !== 'true') {
-            window.location.href = '/verify.html';
-        }
-
         const isOwner = sessionStorage.getItem('isOwner') === 'true';
         
         if (!isOwner) {
