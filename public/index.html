@@ -419,6 +419,10 @@
     </div>
 
     <script>
+        if (localStorage.getItem('verified') !== 'true') {
+            window.location.href = '/verify.html';
+        }
+
         let selectedFiles = [];
         let editingPostId = null;
         let currentViewPostId = null;
