@@ -521,8 +521,58 @@
             event.target.value = '';
         }
 
-        function handleImageFiles(files) {
-            files.forEach(file => {
+        function compressImage(file) {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+                    const maxWidth = 2000;
+                    const maxHeight = 2000;
+
+                    if (width > maxWidth) {
+                        height = (height * maxWidth) / width;
+                        width = maxWidth;
+                    }
+                    if (height > maxHeight) {
+                        width = (width * maxHeight) / height;
+                        height = maxHeight;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    let quality = 0.9;
+                    let compressedBlob;
+
+                    const compress = () => {
+                        canvas.toBlob((blob) => {
+                            if (blob.size > 10 * 1024 * 1024 && quality > 0.1) {
+                                quality -= 0.1;
+                                compress();
+                            } else {
+                                const compressedFile = new File([blob], file.name, {
+                                    type: file.type,
+                                    lastModified: Date.now()
+                                });
+                                resolve(compressedFile);
+                            }
+                        }, file.type, quality);
+                    };
+
+                    compress();
+                };
+
+                img.src = URL.createObjectURL(file);
+            });
+        }
+
+        async function handleImageFiles(files) {
+            for (const file of files) {
                 if (selectedFiles.length >= 10) {
                     alert('最多只能上传10张图片');
                     return;
@@ -538,13 +588,18 @@
                     return;
                 }
 
-                selectedFiles.push(file);
+                let processedFile = file;
+                if (file.size > 10 * 1024 * 1024) {
+                    processedFile = await compressImage(file);
+                }
+
+                selectedFiles.push(processedFile);
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    addPreviewImage(e.target.result, false, file);
+                    addPreviewImage(e.target.result, false, processedFile);
                 };
-                reader.readAsDataURL(file);
-            });
+                reader.readAsDataURL(processedFile);
+            }
         }
 
         function addPreviewImage(src, isExisting = false, file = null) {
