@@ -40,11 +40,19 @@ const initDb = async () => {
                 title TEXT NOT NULL,
                 content TEXT NOT NULL,
                 images TEXT,
-                videos TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+        
+        try {
+            await client.query('ALTER TABLE posts ADD COLUMN videos TEXT');
+            console.log('Added videos column to posts table');
+        } catch (error) {
+            if (!error.message.includes('column "videos" of relation "posts" already exists')) {
+                throw error;
+            }
+        }
         await client.query(`
             CREATE TABLE IF NOT EXISTS comments (
                 id SERIAL PRIMARY KEY,

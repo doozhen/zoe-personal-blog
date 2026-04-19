@@ -1,0 +1,18 @@
+# Git 命令
+
+请在命令行中执行以下命令：
+
+1. 进入项目目录：
+   cd e:\zoe\zoeindex
+
+2. 检查 Git 状态：
+   git status
+
+3. 添加所有文件：
+   git add .
+
+4. 提交更改：
+   git commit -m "添加 videos 字段到 posts 表"
+
+5. 推送到 GitHub：
+   git push
