@@ -420,9 +420,75 @@ app.delete('/api/comments/:id', async (req, res) => {
 app.get('/api/guestbook', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM guestbook ORDER BY created_at DESC');
-        res.json(result.rows);
+        const entries = result.rows.map(row => {
+            row.images = row.images ? JSON.parse(row.images) : [];
+            row.videos = row.videos ? JSON.parse(row.videos) : [];
+            return row;
+        });
+        res.json(entries);
     } catch (error) {
         console.error('Error fetching guestbook entries:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/guestbook/:id', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM guestbook WHERE id = $1', [req.params.id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Guestbook entry not found' });
+        }
+        const entry = result.rows[0];
+        entry.images = entry.images ? JSON.parse(entry.images) : [];
+        entry.videos = entry.videos ? JSON.parse(entry.videos) : [];
+        res.json(entry);
+    } catch (error) {
+        console.error('Error fetching guestbook entry:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/api/guestbook/:id', upload.array('images', 10), async (req, res) => {
+    try {
+        const { title, content } = req.body;
+        const entryId = req.params.id;
+
+        const existingResult = await pool.query('SELECT * FROM guestbook WHERE id = $1', [entryId]);
+        if (existingResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Guestbook entry not found' });
+        }
+        const existingEntry = existingResult.rows[0];
+
+        const existingImages = existingEntry.images ? JSON.parse(existingEntry.images) : [];
+        const existingVideos = existingEntry.videos ? JSON.parse(existingEntry.videos) : [];
+        const newImages = [];
+        const newVideos = [];
+
+        if (req.files) {
+            for (const file of req.files) {
+                const fileUrl = await uploadToCloudinary(file);
+                if (file.mimetype.startsWith('video/')) {
+                    newVideos.push(fileUrl);
+                } else {
+                    newImages.push(fileUrl);
+                }
+            }
+        }
+
+        const allImages = [...existingImages, ...newImages];
+        const allVideos = [...existingVideos, ...newVideos];
+
+        const result = await pool.query(
+            'UPDATE guestbook SET title = $1, content = $2, images = $3, videos = $4 WHERE id = $5 RETURNING *',
+            [title || existingEntry.title, content || existingEntry.content, JSON.stringify(allImages), JSON.stringify(allVideos), entryId]
+        );
+
+        const updatedEntry = result.rows[0];
+        updatedEntry.images = allImages;
+        updatedEntry.videos = allVideos;
+        res.json(updatedEntry);
+    } catch (error) {
+        console.error('Error updating guestbook entry:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -472,12 +538,30 @@ app.post('/api/guestbook', upload.fields([{ name: 'images', maxCount: 9 }, { nam
 app.delete('/api/guestbook/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const result = await pool.query('DELETE FROM guestbook WHERE id = $1 RETURNING *', [id]);
 
-        if (result.rows.length === 0) {
+        const existingResult = await pool.query('SELECT * FROM guestbook WHERE id = $1', [id]);
+        if (existingResult.rows.length === 0) {
             return res.status(404).json({ error: 'Guestbook entry not found' });
         }
+        const entry = existingResult.rows[0];
 
+        if (entry.images) {
+            const images = JSON.parse(entry.images);
+            for (const imageUrl of images) {
+                const publicId = imageUrl.substring(imageUrl.lastIndexOf('/') + 1, imageUrl.lastIndexOf('.'));
+                await cloudinary.uploader.destroy(`zoe-blog/guestbook/${publicId}`);
+            }
+        }
+
+        if (entry.videos) {
+            const videos = JSON.parse(entry.videos);
+            for (const videoUrl of videos) {
+                const publicId = videoUrl.substring(videoUrl.lastIndexOf('/') + 1, videoUrl.lastIndexOf('.'));
+                await cloudinary.uploader.destroy(`zoe-blog/guestbook/${publicId}`, { resource_type: 'video' });
+            }
+        }
+
+        await pool.query('DELETE FROM guestbook WHERE id = $1', [id]);
         res.json({ message: 'Guestbook entry deleted successfully' });
     } catch (error) {
         console.error('Error deleting guestbook entry:', error);

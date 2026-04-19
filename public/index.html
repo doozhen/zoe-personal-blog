@@ -716,40 +716,52 @@
             container.innerHTML = '<div class="loading">加载中...</div>';
 
             try {
-                const response = await fetch('/api/posts');
-                const posts = await response.json();
+                const [postsResponse, guestbookResponse] = await Promise.all([
+                    fetch('/api/posts'),
+                    fetch('/api/guestbook')
+                ]);
 
-                if (posts.length === 0) {
+                const posts = await postsResponse.json();
+                const guestbookEntries = await guestbookResponse.json();
+
+                const allEntries = [
+                    ...posts.map(post => ({ ...post, type: 'post' })),
+                    ...guestbookEntries.map(entry => ({ ...entry, type: 'guestbook' }))
+                ];
+
+                allEntries.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                if (allEntries.length === 0) {
                     container.innerHTML = `
                         <div class="empty-state">
                             <div class="icon">📝</div>
-                            <h3>还没有日志</h3>
-                            <p>点击"撰写新日志"开始创作吧！</p>
+                            <h3>还没有内容</h3>
+                            <p>点击"撰写新日志"或"留言"开始创作吧！</p>
                         </div>
                     `;
                     return;
                 }
 
-                container.innerHTML = '<div class="posts-grid">' + posts.map(post => `
-                    <div class="post-card" onclick="viewPost(${post.id})">
-                        <h3>${escapeHtml(post.title)}</h3>
-                        <p class="date">${new Date(post.created_at).toLocaleString('zh-CN')}</p>
-                        <p class="preview">${escapeHtml(post.content.substring(0, 100))}...</p>
-                        ${post.videos && post.videos.length > 0 ? `
+                container.innerHTML = '<div class="posts-grid">' + allEntries.map(entry => `
+                    <div class="post-card" onclick="view${entry.type === 'post' ? 'Post' : 'GuestbookEntry'}(${entry.id})">
+                        <h3>${escapeHtml(entry.title)}</h3>
+                        <p class="date">${new Date(entry.created_at).toLocaleString('zh-CN')}</p>
+                        <p class="preview">${escapeHtml(entry.content.substring(0, 100))}...</p>
+                        ${entry.videos && entry.videos.length > 0 ? `
                             <div class="video-indicator">
-                                🎬 包含${post.videos.length}个视频
+                                🎬 包含${entry.videos.length}个视频
                             </div>
                         ` : ''}
-                        ${post.images && post.images.length > 0 ? `
+                        ${entry.images && entry.images.length > 0 ? `
                             <div class="images-preview">
-                                ${post.images.slice(0, 4).map(img => `<img src="${img}" alt="preview">`).join('')}
-                                ${post.images.length > 4 ? `<span>+${post.images.length - 4}</span>` : ''}
+                                ${entry.images.slice(0, 4).map(img => `<img src="${img}" alt="preview">`).join('')}
+                                ${entry.images.length > 4 ? `<span>+${entry.images.length - 4}</span>` : ''}
                             </div>
                         ` : ''}
                         ${isOwner ? `
                             <div class="post-actions" onclick="event.stopPropagation()">
-                                <button class="btn-edit" onclick="editPost(${post.id})">编辑</button>
-                                <button class="btn-delete" onclick="deletePost(${post.id})">删除</button>
+                                <button class="btn-edit" onclick="edit${entry.type === 'post' ? 'Post' : 'GuestbookEntry'}(${entry.id})">编辑</button>
+                                <button class="btn-delete" onclick="delete${entry.type === 'post' ? 'Post' : 'GuestbookEntry'}(${entry.id})">删除</button>
                             </div>
                         ` : ''}
                     </div>
@@ -1130,11 +1142,12 @@
 
             const newVideoFiles = selectedVideos.filter(f => f instanceof File);
             newVideoFiles.forEach(file => {
-                formData.append('images', file);
+                formData.append('videos', file);
             });
 
             try {
-                const url = postId ? `/api/posts/${postId}` : '/api/posts';
+                const isEditingGuestbook = document.getElementById('editor-title').textContent === '编辑留言';
+                const url = isEditingGuestbook ? `/api/guestbook/${postId}` : (postId ? `/api/posts/${postId}` : '/api/posts');
                 const method = postId ? 'PUT' : 'POST';
 
                 const response = await fetch(url, {
@@ -1143,10 +1156,9 @@
                 });
 
                 if (response.ok) {
-                    alert(postId ? '日志已更新' : '日志发布成功');
+                    alert(isEditingGuestbook ? '留言已更新' : (postId ? '日志已更新' : '日志发布成功'));
                     closeEditor();
                     loadPosts();
-                    loadGuestbook();
                 } else {
                     const error = await response.json();
                     alert(error.error || '操作失败');
@@ -1204,6 +1216,56 @@
             } catch (error) {
                 alert('加载日志失败');
                 console.error('Error viewing post:', error);
+            }
+        }
+
+        async function viewGuestbookEntry(entryId) {
+            currentViewPostId = entryId;
+            try {
+                const response = await fetch(`/api/guestbook/${entryId}`);
+                const entry = await response.json();
+
+                document.getElementById('view-title').textContent = entry.title;
+                document.getElementById('view-date').textContent = new Date(entry.created_at).toLocaleString('zh-CN');
+                document.getElementById('view-content').textContent = entry.content;
+
+                const mediaContainer = document.getElementById('view-media');
+                mediaContainer.innerHTML = '';
+
+                if (entry.images && entry.images.length > 0) {
+                    const imageGrid = document.createElement('div');
+                    imageGrid.className = 'image-grid';
+                    
+                    entry.images.forEach((img, index) => {
+                        const imgContainer = document.createElement('div');
+                        imgContainer.className = 'image-item';
+                        
+                        const imgEl = document.createElement('img');
+                        imgEl.src = img;
+                        imgEl.alt = `Image ${index + 1}`;
+                        imgEl.onclick = () => openImageModal(img);
+                        
+                        imgContainer.appendChild(imgEl);
+                        imageGrid.appendChild(imgContainer);
+                    });
+                    
+                    mediaContainer.appendChild(imageGrid);
+                }
+
+                if (entry.videos && entry.videos.length > 0) {
+                    entry.videos.forEach(video => {
+                        const videoEl = document.createElement('video');
+                        videoEl.src = video;
+                        videoEl.controls = true;
+                        mediaContainer.appendChild(videoEl);
+                    });
+                }
+
+                document.getElementById('comments-list').innerHTML = '<p style="color: #888;">留言不支持评论功能</p>';
+                document.getElementById('view-modal').classList.add('active');
+            } catch (error) {
+                alert('加载留言失败');
+                console.error('Error viewing guestbook entry:', error);
             }
         }
 
@@ -1444,6 +1506,70 @@
             } catch (error) {
                 alert('删除失败，请重试');
                 console.error('Error deleting post:', error);
+            }
+        }
+
+        async function editGuestbookEntry(entryId) {
+            try {
+                const response = await fetch(`/api/guestbook/${entryId}`);
+                const entry = await response.json();
+
+                document.getElementById('post-id').value = entry.id;
+                document.getElementById('post-title').value = entry.title;
+                document.getElementById('post-content').value = entry.content;
+
+                selectedImages = [];
+                selectedVideos = [];
+                const imagePreviewContainer = document.getElementById('image-preview-container');
+                const videoPreviewContainer = document.getElementById('video-preview-container');
+                imagePreviewContainer.innerHTML = '';
+                videoPreviewContainer.innerHTML = '';
+
+                if (entry.images && entry.images.length > 0) {
+                    entry.images.forEach((img) => {
+                        addPreviewImage(img, true);
+                    });
+                }
+
+                if (entry.videos && entry.videos.length > 0) {
+                    entry.videos.forEach((video) => {
+                        addPreviewVideo(video, true);
+                    });
+                }
+
+                const modal = document.getElementById('editor-modal');
+                const title = document.getElementById('editor-title');
+                const submitBtn = document.getElementById('submit-btn');
+                title.textContent = '编辑留言';
+                submitBtn.textContent = '保存修改';
+                modal.classList.add('active');
+                loadFFmpeg();
+            } catch (error) {
+                alert('加载留言失败');
+                console.error('Error loading guestbook entry:', error);
+            }
+        }
+
+        async function deleteGuestbookEntry(entryId) {
+            if (!confirm('确定要删除这条留言吗？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/guestbook/${entryId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    alert('留言已删除');
+                    loadPosts();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || '删除失败');
+                }
+            } catch (error) {
+                alert('删除失败，请重试');
+                console.error('Error deleting guestbook entry:', error);
             }
         }
 
