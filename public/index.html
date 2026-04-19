@@ -415,7 +415,7 @@
             <h1>Zoe's Blog</h1>
             <p>zoe乱七八糟的的的的的博客,当然你也可以向我提问,或许我会为你解答。</p>
             <div class="nav">
-                <button class="nav-btn" onclick="openEditor()">撰写新日志</button>
+                <button class="nav-btn" onclick="openEditor()" id="new-post-btn">撰写新日志</button>
                 <button class="nav-btn" onclick="loadPosts()">刷新列表</button>
             </div>
         </header>
@@ -497,6 +497,12 @@
     <script>
         if (sessionStorage.getItem('verified') !== 'true') {
             window.location.href = '/verify.html';
+        }
+
+        const isOwner = sessionStorage.getItem('isOwner') === 'true';
+        
+        if (!isOwner) {
+            document.getElementById('new-post-btn').style.display = 'none';
         }
 
         let selectedImages = [];
@@ -614,8 +620,10 @@
                         ` : ''}
                         <div class="post-actions">
                             <button class="btn-edit" onclick="viewPost(${post.id})">查看</button>
-                            <button class="btn-edit" onclick="editPost(${post.id})">编辑</button>
-                            <button class="btn-delete" onclick="deletePost(${post.id})">删除</button>
+                            ${isOwner ? `
+                                <button class="btn-edit" onclick="editPost(${post.id})">编辑</button>
+                                <button class="btn-delete" onclick="deletePost(${post.id})">删除</button>
+                            ` : ''}
                         </div>
                     </div>
                 `).join('') + '</div>';

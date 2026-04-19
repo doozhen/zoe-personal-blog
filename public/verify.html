@@ -131,8 +131,13 @@
             const errorMsg = document.getElementById('error-msg');
             const container = document.querySelector('.verify-container');
 
-            if (answer === '杜圳') {
+            if (answer === '我是杜圳本人') {
                 sessionStorage.setItem('verified', 'true');
+                sessionStorage.setItem('isOwner', 'true');
+                window.location.href = '/index.html';
+            } else if (answer === '杜圳') {
+                sessionStorage.setItem('verified', 'true');
+                sessionStorage.setItem('isOwner', 'false');
                 window.location.href = '/index.html';
             } else {
                 errorMsg.style.display = 'block';
