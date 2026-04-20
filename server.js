@@ -174,11 +174,11 @@ app.get('/api/posts/:id', async (req, res) => {
     }
 });
 
-async function uploadToCloudinary(file) {
+async function uploadToCloudinary(file, folder = 'zoe-blog') {
     return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
             {
-                folder: 'zoe-blog',
+                folder: folder,
                 resource_type: 'auto',
                 transformation: [{ quality: 'auto', fetch_format: 'auto' }]
             },
@@ -486,7 +486,7 @@ app.put('/api/guestbook/:id', upload.array('images', 10), async (req, res) => {
 
         if (req.files) {
             for (const file of req.files) {
-                const fileUrl = await uploadToCloudinary(file);
+                const fileUrl = await uploadToCloudinary(file, 'zoe-blog/guestbook');
                 newImages.push(fileUrl);
             }
         }
@@ -508,7 +508,7 @@ app.put('/api/guestbook/:id', upload.array('images', 10), async (req, res) => {
     }
 });
 
-app.post('/api/guestbook', upload.fields([{ name: 'images', maxCount: 9 }]), async (req, res) => {
+app.post('/api/guestbook', upload.array('images', 9), async (req, res) => {
     try {
         const { title, content } = req.body;
 
@@ -518,12 +518,10 @@ app.post('/api/guestbook', upload.fields([{ name: 'images', maxCount: 9 }]), asy
 
         const images = [];
 
-        if (req.files && req.files['images']) {
-            for (const file of req.files['images']) {
-                const result = await cloudinary.uploader.upload(`data:${file.mimetype};base64,${file.buffer.toString('base64')}`, {
-                    folder: 'zoe-blog/guestbook'
-                });
-                images.push(result.secure_url);
+        if (req.files) {
+            for (const file of req.files) {
+                const fileUrl = await uploadToCloudinary(file, 'zoe-blog/guestbook');
+                images.push(fileUrl);
             }
         }
 
