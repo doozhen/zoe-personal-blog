@@ -1000,6 +1000,7 @@
         let selectedVideos = [];
         let editingPostId = null;
         let currentViewPostId = null;
+        let currentViewType = 'post';
         let ffmpeg = null;
         let ffmpegLoading = false;
         let selectedAvatar = null;
@@ -1535,6 +1536,7 @@
 
         async function viewPost(postId) {
             currentViewPostId = postId;
+            currentViewType = 'post';
             try {
                 const response = await fetch(`/api/posts/${postId}`);
                 const post = await response.json();
@@ -1598,6 +1600,7 @@
 
         async function viewGuestbookEntry(entryId) {
             currentViewPostId = entryId;
+            currentViewType = 'guestbook';
             try {
                 const response = await fetch(`/api/guestbook/${entryId}`);
                 const entry = await response.json();
@@ -1638,11 +1641,49 @@
                     });
                 }
 
-                document.getElementById('comments-list').innerHTML = '<p style="color: #888;">留言不支持评论功能</p>';
+                await loadGuestbookComments(entryId);
+                
+                const viewContent = document.getElementById('view-content');
+                const viewDate = document.getElementById('view-date');
+                const viewMedia = document.getElementById('view-media');
+                const commentsSection = document.querySelector('.comments-section');
+                
+                viewContent.style.animation = 'fadeInUp 0.5s ease-out 0.2s both';
+                viewDate.style.animation = 'fadeIn 0.5s ease-out 0.3s both';
+                viewMedia.style.animation = 'fadeInUp 0.5s ease-out 0.4s both';
+                if (commentsSection) {
+                    commentsSection.style.animation = 'fadeInUp 0.5s ease-out 0.5s both';
+                }
+                
                 document.getElementById('view-modal').classList.add('active');
             } catch (error) {
                 alert('加载留言失败');
                 console.error('Error viewing guestbook entry:', error);
+            }
+        }
+
+        async function loadGuestbookComments(entryId) {
+            try {
+                const response = await fetch(`/api/guestbook/${entryId}/comments`);
+                const comments = await response.json();
+                const commentsList = document.getElementById('comments-list');
+
+                if (comments.length === 0) {
+                    commentsList.innerHTML = '<p style="color: #888;">暂无评论，来发表第一条评论吧！</p>';
+                    return;
+                }
+
+                commentsList.innerHTML = comments.map(comment => `
+                    <div class="comment-item">
+                        <div class="comment-header">
+                            <strong class="comment-author">${escapeHtml(comment.author)}</strong>
+                            <span class="comment-date">${new Date(comment.created_at).toLocaleString('zh-CN')}</span>
+                        </div>
+                        <p class="comment-content">${escapeHtml(comment.content)}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading guestbook comments:', error);
             }
         }
 
@@ -1681,7 +1722,11 @@
             }
 
             try {
-                const response = await fetch(`/api/posts/${currentViewPostId}/comments`, {
+                const apiEndpoint = currentViewType === 'guestbook' 
+                    ? `/api/guestbook/${currentViewPostId}/comments` 
+                    : `/api/posts/${currentViewPostId}/comments`;
+                
+                const response = await fetch(apiEndpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ author, content })
@@ -1689,7 +1734,11 @@
 
                 if (response.ok) {
                     document.getElementById('comment-content').value = '';
-                    await loadComments(currentViewPostId);
+                    if (currentViewType === 'guestbook') {
+                        await loadGuestbookComments(currentViewPostId);
+                    } else {
+                        await loadComments(currentViewPostId);
+                    }
                 } else {
                     const error = await response.json();
                     alert(error.error || '评论失败');
