@@ -68,6 +68,18 @@ const initDb = async () => {
             )
         `);
 
+        // Create guestbook comments table if it doesn't exist
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS guestbook_comments (
+                id SERIAL PRIMARY KEY,
+                guestbook_id INTEGER NOT NULL,
+                author TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (guestbook_id) REFERENCES guestbook(id) ON DELETE CASCADE
+            )
+        `);
+
         // Create guestbook table if it doesn't exist
         await client.query(`
             CREATE TABLE IF NOT EXISTS guestbook (
@@ -443,6 +455,63 @@ app.delete('/api/comments/:id', async (req, res) => {
         res.json({ message: 'Comment deleted successfully' });
     } catch (error) {
         console.error('Error deleting comment:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Guestbook comments endpoints
+app.get('/api/guestbook/:guestbookId/comments', async (req, res) => {
+    try {
+        const { guestbookId } = req.params;
+        const result = await pool.query(
+            'SELECT * FROM guestbook_comments WHERE guestbook_id = $1 ORDER BY created_at DESC',
+            [guestbookId]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching guestbook comments:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/guestbook/:guestbookId/comments', async (req, res) => {
+    try {
+        const { guestbookId } = req.params;
+        const { author, content } = req.body;
+
+        if (!author || !content) {
+            return res.status(400).json({ error: 'Author and content are required' });
+        }
+
+        const guestbookCheck = await pool.query('SELECT id FROM guestbook WHERE id = $1', [guestbookId]);
+        if (guestbookCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Guestbook entry not found' });
+        }
+
+        const result = await pool.query(
+            'INSERT INTO guestbook_comments (guestbook_id, author, content) VALUES ($1, $2, $3) RETURNING *',
+            [guestbookId, author, content]
+        );
+
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error('Error creating guestbook comment:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/guestbook/comments/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query('DELETE FROM guestbook_comments WHERE id = $1 RETURNING *', [id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Comment not found' });
+        }
+
+        res.json({ message: 'Comment deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting guestbook comment:', error);
         res.status(500).json({ error: error.message });
     }
 });
