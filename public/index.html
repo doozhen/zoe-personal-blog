@@ -18,16 +18,33 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: url('/src/previewFix.jpg') no-repeat center center fixed;
-            background-size: cover;
+            background-color: #f5f5f5;
             min-height: 100vh;
             padding: 20px;
+        }
+
+        .bg-image {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('/src/previewFix.jpg') no-repeat center center;
+            background-size: cover;
+            will-change: transform;
             animation: bgPulse 15s ease-in-out infinite;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 1s ease-out;
+        }
+
+        .bg-image.loaded {
+            opacity: 1;
         }
 
         @keyframes bgPulse {
-            0%, 100% { background-size: cover; }
-            50% { background-size: 105% cover; }
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
 
         .container {
@@ -158,6 +175,16 @@
             height: 60px;
             object-fit: cover;
             border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .post-card .images-preview img.lazy-image {
+            background: #f0f0f0;
+        }
+
+        .post-card .images-preview img.lazy-loaded {
+            opacity: 1;
         }
 
         .post-card .video-indicator {
@@ -838,6 +865,7 @@
 </style>
 </head>
 <body>
+    <div class="bg-image" id="bg-image"></div>
     <div class="container">
         <header>
             <div class="avatar-container">
@@ -1002,6 +1030,84 @@
     </div>
 
     <script>
+        // 页面加载速度优化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 延迟加载背景图片
+            lazyLoadBackground();
+            
+            // 初始化图片懒加载观察器
+            initLazyLoad();
+        });
+
+        // 背景图片延迟加载
+        function lazyLoadBackground() {
+            const bgImage = document.getElementById('bg-image');
+            if (!bgImage) return;
+
+            const img = new Image();
+            img.onload = function() {
+                bgImage.classList.add('loaded');
+            };
+            img.src = '/src/previewFix.jpg';
+        }
+
+        // 图片懒加载观察器
+        let lazyLoadObserver = null;
+
+        function initLazyLoad() {
+            if ('IntersectionObserver' in window) {
+                lazyLoadObserver = new IntersectionObserver(function(entries, observer) {
+                    entries.forEach(function(entry) {
+                        if (entry.isIntersecting) {
+                            const img = entry.target;
+                            const src = img.getAttribute('data-src');
+                            if (src) {
+                                img.src = src;
+                                img.removeAttribute('data-src');
+                                img.classList.remove('lazy-image');
+                                img.classList.add('lazy-loaded');
+                            }
+                            observer.unobserve(img);
+                        }
+                    });
+                }, {
+                    rootMargin: '50px 0px',
+                    threshold: 0.01
+                });
+
+                // 观察所有带有 data-src 属性的图片
+                document.querySelectorAll('img[data-src]').forEach(function(img) {
+                    lazyLoadObserver.observe(img);
+                });
+            } else {
+                // 降级方案：直接加载所有图片
+                document.querySelectorAll('img[data-src]').forEach(function(img) {
+                    img.src = img.getAttribute('data-src');
+                    img.removeAttribute('data-src');
+                    img.classList.remove('lazy-image');
+                    img.classList.add('lazy-loaded');
+                });
+            }
+        }
+
+        // 添加懒加载图片的辅助函数
+        function createLazyImage(src, alt = '') {
+            const img = document.createElement('img');
+            img.setAttribute('data-src', src);
+            img.alt = alt;
+            img.style.opacity = '0';
+            img.style.transition = 'opacity 0.3s ease';
+            img.onload = function() {
+                img.style.opacity = '1';
+            };
+            if (lazyLoadObserver) {
+                lazyLoadObserver.observe(img);
+            } else {
+                img.src = src;
+            }
+            return img;
+        }
+
         const isOwner = sessionStorage.getItem('isOwner') === 'true';
         
         if (!isOwner) {
@@ -1134,7 +1240,7 @@
                         ` : ''}
                         ${entry.images && entry.images.length > 0 ? `
                             <div class="images-preview">
-                                ${entry.images.slice(0, 4).map(img => `<img src="${img}" alt="preview">`).join('')}
+                                ${entry.images.slice(0, 4).map(img => `<img data-src="${img}" alt="preview" class="lazy-image">`).join('')}
                                 ${entry.images.length > 4 ? `<span>+${entry.images.length - 4}</span>` : ''}
                             </div>
                         ` : ''}
@@ -1572,15 +1678,29 @@
                         imgContainer.className = 'image-item';
                         
                         const imgEl = document.createElement('img');
-                        imgEl.src = img;
+                        imgEl.setAttribute('data-src', img);
                         imgEl.alt = `Image ${index + 1}`;
+                        imgEl.className = 'lazy-image';
                         imgEl.onclick = () => openImageModal(img);
+                        
+                        // 立即加载第一张图片
+                        if (index === 0) {
+                            imgEl.src = img;
+                            imgEl.removeAttribute('data-src');
+                        }
                         
                         imgContainer.appendChild(imgEl);
                         imageGrid.appendChild(imgContainer);
                     });
                     
                     mediaContainer.appendChild(imageGrid);
+                    
+                    // 重新观察新添加的懒加载图片
+                    if (lazyLoadObserver) {
+                        imageGrid.querySelectorAll('img[data-src]').forEach(img => {
+                            lazyLoadObserver.observe(img);
+                        });
+                    }
                 }
 
                 if (post.videos && post.videos.length > 0) {
@@ -1636,15 +1756,29 @@
                         imgContainer.className = 'image-item';
                         
                         const imgEl = document.createElement('img');
-                        imgEl.src = img;
+                        imgEl.setAttribute('data-src', img);
                         imgEl.alt = `Image ${index + 1}`;
+                        imgEl.className = 'lazy-image';
                         imgEl.onclick = () => openImageModal(img);
+                        
+                        // 立即加载第一张图片
+                        if (index === 0) {
+                            imgEl.src = img;
+                            imgEl.removeAttribute('data-src');
+                        }
                         
                         imgContainer.appendChild(imgEl);
                         imageGrid.appendChild(imgContainer);
                     });
                     
                     mediaContainer.appendChild(imageGrid);
+                    
+                    // 重新观察新添加的懒加载图片
+                    if (lazyLoadObserver) {
+                        imageGrid.querySelectorAll('img[data-src]').forEach(img => {
+                            lazyLoadObserver.observe(img);
+                        });
+                    }
                 }
 
                 if (entry.videos && entry.videos.length > 0) {
