@@ -1253,6 +1253,23 @@
                     </div>
                 `).join('') + '</div>';
 
+                // 重新观察新添加的懒加载图片
+                setTimeout(() => {
+                    if (lazyLoadObserver) {
+                        document.querySelectorAll('img[data-src].lazy-image').forEach(img => {
+                            lazyLoadObserver.observe(img);
+                        });
+                    } else {
+                        // 降级方案：直接加载所有图片
+                        document.querySelectorAll('img[data-src].lazy-image').forEach(img => {
+                            img.src = img.getAttribute('data-src');
+                            img.removeAttribute('data-src');
+                            img.classList.remove('lazy-image');
+                            img.classList.add('lazy-loaded');
+                        });
+                    }
+                }, 50);
+
             } catch (error) {
                 container.innerHTML = '<div class="loading">加载失败，请刷新重试</div>';
                 console.error('Error loading posts:', error);
